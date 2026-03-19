@@ -59,10 +59,11 @@ Phien ban hien tai cung cap:
 
 - core `picorv32.v` chinh thuc
 - SoC memory-mapped don gian
-- boot ROM placeholder de synthesize duoc ngay
+- boot ROM smoke image de de test synth/sim ngay
 - source firmware boot ROM de phat trien tiep
 - VGA test pattern de bring-up man hinh
 - PS/2 va SPI o muc khoi tao/phat trien tiep
+- testbench smoke test cho Vivado simulation
 
 ## Cach dung nhanh
 
@@ -75,8 +76,17 @@ source scripts/create_vivado_project.tcl
 ```
 
 3. Set top la `top_basys3`.
-4. Add/refresh `bootrom.mem` neu ban thay firmware.
-5. Run synthesis -> implementation -> bitstream.
+4. Behavioral simulation:
+
+```tcl
+set_property top top_basys3_tb [get_filesets sim_1]
+launch_simulation
+```
+
+5. Neu muon synthesize len board:
+   - set top ve `top_basys3`
+   - add/refresh `bootrom.mem` neu ban thay firmware
+   - run synthesis -> implementation -> bitstream
 
 ## Goi y trien khai theo tung moc
 

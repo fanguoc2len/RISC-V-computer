@@ -9,4 +9,10 @@ Muc tieu firmware:
 3. thu boot image tu SD card
 4. fallback ve monitor shell neu boot fail
 
-Hien tai file `bootrom.mem` o root repo la placeholder de Vivado synthesize duoc ngay. Khi ban co RISC-V toolchain, hay build lai tu source trong thu muc nay va thay `bootrom.mem`.
+Hien tai file `bootrom.mem` o root repo la **smoke-test image** de Vivado synthesize/simulate duoc ngay:
+
+- bat `LED0`
+- gui 1 byte UART
+- sau do loop vo han
+
+Khi ban co RISC-V toolchain, hay build lai tu source trong thu muc nay va thay `bootrom.mem` bang bootloader that.
