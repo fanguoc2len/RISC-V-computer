@@ -1,0 +1,98 @@
+# RISC-V Computer on FPGA
+
+Starter repository cho do an tot nghiep: xay dung mot may tinh toi gian tren FPGA dua tren `PicoRV32`.
+
+Muc tieu cua repo nay khong phai la nhay thang vao mot he thong qua lon, ma la tao mot duong di thuc te, co the synthesize va debug tung buoc tren FPGA trong khoang 6 thang:
+
+1. `PicoRV32 + BRAM + UART + LED + timer`
+2. `SPI + SD bootloader`
+3. `VGA text mode`
+4. `PS/2 keyboard`
+5. `monitor shell` va cac chuong trinh don gian
+
+## Kien truc du kien
+
+- CPU: `PicoRV32` native memory interface
+- FPGA target hien tai: `Basys 3 (xc7a35tcpg236-1)`
+- Memory model: unified address space
+- ROM: boot ROM trong BRAM
+- RAM: scratchpad/unified SRAM trong BRAM
+- I/O map:
+  - `UART`
+  - `GPIO/LED`
+  - `timer`
+  - `SPI master`
+  - `PS/2 keyboard`
+  - `VGA bring-up`
+
+Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbone trong giai doan dau. Ly do la do an chi co 1 master, can debug nhanh, va can tap trung vao boot/display/input truoc khi tang do phuc tap.
+
+## Cau truc repo
+
+- `rtl/top/top_basys3.v`: top-level cho Basys 3
+- `rtl/soc/riscv_pc_soc.v`: SoC chinh
+- `rtl/memory/`: ROM va SRAM
+- `rtl/peripherals/`: UART/GPIO/timer/SPI/PS2
+- `rtl/video/`: VGA timing va test pattern
+- `firmware/bootrom/`: source boot ROM
+- `constraints/basys3_top.xdc`: pin constraint cho Basys 3
+- `scripts/create_vivado_project.tcl`: tao project Vivado nhanh
+- `docs/`: architecture, boot flow, roadmap, debug notes
+
+## Memory map
+
+| Address range | Chuc nang |
+| --- | --- |
+| `0x0000_0000` - `0x0000_3FFF` | Boot ROM (16 KB) |
+| `0x1000_0000` - `0x1000_FFFF` | Unified SRAM (64 KB) |
+| `0x2000_0000` - `0x2000_0007` | UART divider / data |
+| `0x2000_1000` - `0x2000_1003` | GPIO output |
+| `0x2000_2000` - `0x2000_2013` | Timer counter / compare |
+| `0x2000_3000` - `0x2000_3007` | SPI master |
+| `0x2000_4000` - `0x2000_4007` | PS/2 keyboard |
+
+## Trang thai hien tai
+
+Repo nay da duoc khoi tao tu project Basys 3/PicoRV32 co san cua ban o `E:\riscvpicorv32\RISC_V_PicoRV32`, nhung da duoc sap xep lai theo huong de mo rong thanh mot mini personal computer.
+
+Phien ban hien tai cung cap:
+
+- core `picorv32.v` chinh thuc
+- SoC memory-mapped don gian
+- boot ROM placeholder de synthesize duoc ngay
+- source firmware boot ROM de phat trien tiep
+- VGA test pattern de bring-up man hinh
+- PS/2 va SPI o muc khoi tao/phat trien tiep
+
+## Cach dung nhanh
+
+1. Mo Vivado TCL console.
+2. Chay:
+
+```tcl
+cd <duong-dan-repo>
+source scripts/create_vivado_project.tcl
+```
+
+3. Set top la `top_basys3`.
+4. Add/refresh `bootrom.mem` neu ban thay firmware.
+5. Run synthesis -> implementation -> bitstream.
+
+## Goi y trien khai theo tung moc
+
+1. Bring-up `UART + LED + SRAM` truoc, bo qua SD/VGA/PS2.
+2. Them bootloader SPI-SD nhung chi doc raw sector, khong FAT32 o giai doan dau.
+3. Sau khi boot duoc binary vao RAM, moi lam `VGA text mode`.
+4. Sau cung moi hop nhat keyboard + monitor shell.
+
+## Tai lieu
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Boot Flow](docs/BOOT_FLOW.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Debug Guide](docs/DEBUG_GUIDE.md)
+
+## Third-party
+
+- `third_party/picorv32/picorv32.v` duoc lay tu repo chinh thuc `YosysHQ/picorv32`
+- License: xem `third_party/picorv32/LICENSE`
