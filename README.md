@@ -88,6 +88,35 @@ launch_simulation
    - add/refresh `bootrom.mem` neu ban thay firmware
    - run synthesis -> implementation -> bitstream
 
+## Chay smoke simulation tren Windows
+
+Vivado cua ban da duoc tim thay o:
+
+```text
+E:\AMDDesignTools\2025.2\Vivado\bin
+```
+
+Co 2 cach:
+
+1. GUI:
+   - mo Vivado
+   - `Tools -> Run Tcl Script...`
+   - chon `scripts/create_vivado_project.tcl`
+   - sau do `Run Simulation`
+
+2. Batch tu Windows CMD:
+
+```bat
+scripts\run_vivado_smoke_sim.bat
+```
+
+Script nay se:
+
+- tao project Vivado
+- set `top_basys3_tb` cho `sim_1`
+- chay behavioral simulation den khi testbench `$finish`
+- ghi log vao `build\vivado_smoke_sim.log`
+
 ## Goi y trien khai theo tung moc
 
 1. Bring-up `UART + LED + SRAM` truoc, bo qua SD/VGA/PS2.
