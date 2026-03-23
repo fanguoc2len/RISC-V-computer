@@ -195,6 +195,34 @@ def puts(p: Program, uart_reg: str, tmp_reg: str, text: str) -> None:
         putc(p, uart_reg, tmp_reg, ord(ch))
 
 
+def spi_begin(p: Program) -> None:
+    p.li("t0", 0x0B)
+    p.sb("t0", 0, "s3")
+
+
+def spi_end(p: Program) -> None:
+    p.li("t0", 0x08)
+    p.sb("t0", 0, "s3")
+
+
+def spi_transfer(p: Program, tx_byte: int, wait_label: str) -> None:
+    p.li("t0", tx_byte)
+    p.sb("t0", 4, "s3")
+    spi_begin(p)
+    p.label(wait_label)
+    p.lw("t1", 0, "s3")
+    p.li("t0", 0x00FA0006)
+    p.beq("t1", "t0", wait_label)
+    p.lw("t1", 4, "s3")
+
+
+def spi_expect(p: Program, tx_byte: int, expected: int, wait_label: str, ok_label: str, fail_label: str) -> None:
+    spi_transfer(p, tx_byte, wait_label)
+    p.li("t0", expected)
+    p.beq("t1", "t0", ok_label)
+    p.j(fail_label)
+
+
 def build_bootrom() -> list[int]:
     uart_base = 0x20000000
     gpio_base = 0x20001000
@@ -213,7 +241,18 @@ def build_bootrom() -> list[int]:
     p.li("t0", uart_div)
     p.sw("t0", 0, "s0")
 
-    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=spi k=ps2\r\n> ")
+    boot_header = [
+        0x52, 0x56, 0x50, 0x43,  # magic: 'RVPC'
+        0x00, 0x00, 0x00, 0x10,  # load_addr: 0x1000_0000
+        0x10, 0x00, 0x00, 0x00,  # size_bytes: 16
+        0x00, 0x00, 0x00, 0x10,  # entry_addr: 0x1000_0000
+        0x4C, 0x00, 0x00, 0x00,  # checksum: 4 x 0x00000013
+        0x01, 0x00, 0x00, 0x00,  # version: 1
+        0x00, 0x00, 0x00, 0x00,  # reserved0
+        0x00, 0x00, 0x00, 0x00,  # reserved1
+    ]
+
+    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2\r\n> ")
 
     p.label("main_loop")
     p.lw("a0", 4, "s0")
@@ -257,28 +296,20 @@ def build_bootrom() -> list[int]:
     p.j("main_loop")
 
     p.label("cmd_spi")
-    p.li("t0", 0xA5)
-    p.sb("t0", 4, "s3")
-    p.li("t0", 0x0B)
-    p.sb("t0", 0, "s3")
+    for index, expected in enumerate(boot_header):
+        ok_label = "boot_ok" if index == len(boot_header) - 1 else f"boot_ok_{index}"
+        spi_expect(p, 0xFF, expected, f"boot_wait_{index}", ok_label, "boot_fail")
+        if index != len(boot_header) - 1:
+            p.label(ok_label)
 
-    p.label("spi_wait")
-    p.lw("t1", 0, "s3")
-    p.li("t0", 0x00FA0006)
-    p.beq("t1", "t0", "spi_wait")
-
-    p.lw("t1", 4, "s3")
-    p.li("t0", 0x08)
-    p.sb("t0", 0, "s3")
-
-    puts(p, "s0", "t0", "SPI=")
-    p.li("t0", 0x3C)
-    p.beq("t1", "t0", "spi_ok")
-    puts(p, "s0", "t0", "ER\r\n> ")
+    p.label("boot_ok")
+    spi_end(p)
+    puts(p, "s0", "t0", "BOOT=OK\r\n> ")
     p.j("main_loop")
 
-    p.label("spi_ok")
-    puts(p, "s0", "t0", "OK\r\n> ")
+    p.label("boot_fail")
+    spi_end(p)
+    puts(p, "s0", "t0", "BOOT=ER\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_ps2")

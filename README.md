@@ -123,10 +123,11 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - UART banner co chu `RV32`
 - shell tra loi lenh `h` bang chuoi `CMDS:`
 - shell tra loi lenh `l` bang chuoi `LED=0`
-- shell tra loi lenh `b` bang chuoi `SPI=OK`
+- shell tra loi lenh `b` bang chuoi `BOOT=OK`
 - shell tra loi lenh `k` bang chuoi `PS2=OK`
 - `LED0` thuc su toggle sau lenh UART
 - `SPI SCLK` co hoat dong trong luc test `b`
+- lenh `b` validate duoc header raw boot image `RVPC` qua SPI model
 - `VGA HSYNC` co toggle
 
 De regenerate `bootrom.mem` ma khong can RISC-V GCC:

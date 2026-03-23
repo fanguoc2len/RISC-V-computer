@@ -5,6 +5,7 @@ module top_basys3_tb;
     localparam integer UART_BAUD = 115200;
     localparam integer UART_BIT_CLKS = CLK_FREQ_HZ / UART_BAUD;
     localparam integer PS2_HALF_CLKS = 200;
+    localparam integer BOOT_HEADER_BYTES = 32;
 
     reg clk;
     reg btnC;
@@ -30,6 +31,7 @@ module top_basys3_tb;
     integer uart_rx_count;
     integer prompt_count;
     integer spi_sclk_posedge_count;
+    integer spi_byte_index;
     reg last_uart_tx;
     reg last_hsync;
     reg uart_mon_read;
@@ -37,17 +39,76 @@ module top_basys3_tb;
     reg [7:0] uart_last_byte;
     reg [31:0] uart_shift4;
     reg [39:0] uart_shift5;
-    reg [7:0] spi_model_shift;
+    reg [47:0] uart_shift6;
+    reg [7:0] spi_shift_reg;
+    reg spi_xfer_active;
     reg banner_seen;
     reg help_reply_seen;
     reg led_zero_msg_seen;
-    reg spi_ok_seen;
+    reg boot_ok_seen;
     reg ps2_ok_seen;
 
     wire uart_mon_tx_unused;
     wire [31:0] uart_mon_div_do;
     wire [31:0] uart_mon_dat_do;
     wire uart_mon_dat_wait;
+
+    function [7:0] spi_image_byte;
+        input integer index;
+        begin
+            case (index)
+                0: spi_image_byte = 8'h52;
+                1: spi_image_byte = 8'h56;
+                2: spi_image_byte = 8'h50;
+                3: spi_image_byte = 8'h43;
+                4: spi_image_byte = 8'h00;
+                5: spi_image_byte = 8'h00;
+                6: spi_image_byte = 8'h00;
+                7: spi_image_byte = 8'h10;
+                8: spi_image_byte = 8'h10;
+                9: spi_image_byte = 8'h00;
+                10: spi_image_byte = 8'h00;
+                11: spi_image_byte = 8'h00;
+                12: spi_image_byte = 8'h00;
+                13: spi_image_byte = 8'h00;
+                14: spi_image_byte = 8'h00;
+                15: spi_image_byte = 8'h10;
+                16: spi_image_byte = 8'h4C;
+                17: spi_image_byte = 8'h00;
+                18: spi_image_byte = 8'h00;
+                19: spi_image_byte = 8'h00;
+                20: spi_image_byte = 8'h01;
+                21: spi_image_byte = 8'h00;
+                22: spi_image_byte = 8'h00;
+                23: spi_image_byte = 8'h00;
+                24: spi_image_byte = 8'h00;
+                25: spi_image_byte = 8'h00;
+                26: spi_image_byte = 8'h00;
+                27: spi_image_byte = 8'h00;
+                28: spi_image_byte = 8'h00;
+                29: spi_image_byte = 8'h00;
+                30: spi_image_byte = 8'h00;
+                31: spi_image_byte = 8'h00;
+                32: spi_image_byte = 8'h13;
+                33: spi_image_byte = 8'h00;
+                34: spi_image_byte = 8'h00;
+                35: spi_image_byte = 8'h00;
+                36: spi_image_byte = 8'h13;
+                37: spi_image_byte = 8'h00;
+                38: spi_image_byte = 8'h00;
+                39: spi_image_byte = 8'h00;
+                40: spi_image_byte = 8'h13;
+                41: spi_image_byte = 8'h00;
+                42: spi_image_byte = 8'h00;
+                43: spi_image_byte = 8'h00;
+                44: spi_image_byte = 8'h13;
+                45: spi_image_byte = 8'h00;
+                46: spi_image_byte = 8'h00;
+                47: spi_image_byte = 8'h00;
+                default: spi_image_byte = 8'hFF;
+            endcase
+        end
+    endfunction
 
     task automatic uart_send_byte;
         input [7:0] data;
@@ -190,11 +251,14 @@ module top_basys3_tb;
         uart_last_byte = 8'h00;
         uart_shift4 = 32'h00000000;
         uart_shift5 = 40'h0000000000;
-        spi_model_shift = 8'h3C;
+        uart_shift6 = 48'h000000000000;
+        spi_shift_reg = 8'hFF;
+        spi_xfer_active = 1'b0;
+        spi_byte_index = 0;
         banner_seen = 1'b0;
         help_reply_seen = 1'b0;
         led_zero_msg_seen = 1'b0;
-        spi_ok_seen = 1'b0;
+        boot_ok_seen = 1'b0;
         ps2_ok_seen = 1'b0;
 
         $display("Starting top_basys3 smoke simulation...");
@@ -210,8 +274,12 @@ module top_basys3_tb;
         uart_send_byte(8'h6C);
         wait_for_prompt(3, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        spi_byte_index = 0;
+        spi_xfer_active = 1'b0;
+        spi_shift_reg = 8'hFF;
+        sd_miso = 1'b1;
         uart_send_byte(8'h62);
-        wait_for_prompt(4, 250000);
+        wait_for_prompt(4, 400000);
         ps2_send_byte(8'h1C);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6B);
@@ -231,8 +299,8 @@ module top_basys3_tb;
             $finish;
         end
 
-        if (!spi_ok_seen) begin
-            $display("FAIL: Did not observe SPI=OK reply after sending 'b'.");
+        if (!boot_ok_seen) begin
+            $display("FAIL: Did not observe BOOT=OK reply after sending 'b'.");
             $finish;
         end
 
@@ -246,8 +314,9 @@ module top_basys3_tb;
             $finish;
         end
 
-        if (spi_sclk_posedge_count == 0) begin
-            $display("FAIL: SPI SCLK never toggled during SPI test.");
+        if (spi_sclk_posedge_count < (BOOT_HEADER_BYTES * 8)) begin
+            $display("FAIL: SPI SCLK toggled only %0d times; expected at least %0d for a full header read.",
+                     spi_sclk_posedge_count, BOOT_HEADER_BYTES * 8);
             $finish;
         end
 
@@ -270,11 +339,18 @@ module top_basys3_tb;
 
     always @(negedge sd_cs_n or posedge sd_cs_n or negedge sd_sclk) begin
         if (sd_cs_n) begin
-            spi_model_shift <= 8'h3C;
             sd_miso <= 1'b1;
+            if (spi_xfer_active) begin
+                spi_xfer_active <= 1'b0;
+                spi_byte_index <= spi_byte_index + 1;
+            end
+        end else if (!spi_xfer_active) begin
+            spi_xfer_active <= 1'b1;
+            spi_shift_reg <= spi_image_byte(spi_byte_index);
+            sd_miso <= (spi_image_byte(spi_byte_index) >= 8'h80);
         end else begin
-            sd_miso <= spi_model_shift[7];
-            spi_model_shift <= {spi_model_shift[6:0], 1'b0};
+            sd_miso <= spi_shift_reg[6];
+            spi_shift_reg <= {spi_shift_reg[6:0], 1'b1};
         end
     end
 
@@ -299,6 +375,7 @@ module top_basys3_tb;
             uart_mon_read <= 1'b1;
             uart_shift4 <= {uart_shift4[23:0], uart_mon.recv_buf_data};
             uart_shift5 <= {uart_shift5[31:0], uart_mon.recv_buf_data};
+            uart_shift6 <= {uart_shift6[39:0], uart_mon.recv_buf_data};
 
             if (uart_mon.recv_buf_data == 8'h3E) begin
                 prompt_count <= prompt_count + 1;
@@ -316,8 +393,8 @@ module top_basys3_tb;
                 led_zero_msg_seen <= 1'b1;
             end
 
-            if ({uart_shift5[31:0], uart_mon.recv_buf_data} == {8'h53, 8'h50, 8'h49, 8'h3D, 8'h4F}) begin
-                spi_ok_seen <= 1'b1;
+            if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h42, 8'h4F, 8'h4F, 8'h54, 8'h3D, 8'h4F}) begin
+                boot_ok_seen <= 1'b1;
             end
 
             if ({uart_shift5[31:0], uart_mon.recv_buf_data} == {8'h50, 8'h53, 8'h32, 8'h3D, 8'h4F}) begin

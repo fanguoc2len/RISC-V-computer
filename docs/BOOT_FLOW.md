@@ -86,6 +86,11 @@ Neu lam duoc `CMD17` doc 1 block 512 byte la da du cho boot raw image.
 - kiem `size_bytes` khong vuot RAM
 - kiem checksum
 
+Milestone mo phong hien tai da cham duoc buoc nay o muc don gian:
+
+- lenh `b` trong monitor shell doc va validate header `RVPC` mau qua SPI model
+- testbench tra ve `BOOT=OK` neu header hop le
+
 ### Buoc 4: copy payload
 
 - doc tung block 512 byte

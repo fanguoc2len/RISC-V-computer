@@ -15,7 +15,7 @@ Hien tai file `bootrom.mem` o root repo la **monitor image** de Vivado synthesiz
 - hien prompt UART
 - nhan lenh `h` de in help
 - nhan lenh `l` de toggle `LED0`
-- nhan lenh `b` de chay SPI smoke transfer
+- nhan lenh `b` de validate header raw boot image `RVPC`
 - nhan lenh `k` de chay PS/2 smoke check
 
 Ban co 2 duong de tiep tuc:

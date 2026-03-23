@@ -65,7 +65,7 @@ Voi ban bring-up hien tai, boot ROM monitor image se lam 3 viec:
 
 1. ghi `GPIO` de bat `LED0`
 2. in banner monitor va cho lenh UART
-3. cho phep lenh `l` toggle `LED0`, lenh `b` chay SPI smoke transfer, va lenh `k` kiem tra PS/2, trong khi khoi `VGA` van phat test pattern
+3. cho phep lenh `l` toggle `LED0`, lenh `b` validate header boot image `RVPC` qua SPI, va lenh `k` kiem tra PS/2, trong khi khoi `VGA` van phat test pattern
 
 Ban nen thay:
 
@@ -73,7 +73,7 @@ Ban nen thay:
 - cong serial hien banner va prompt `> `
 - man hinh VGA co hinh mau test pattern
 - gui `l` qua UART thi `LED0` doi trang thai
-- gui `b` qua UART thi monitor bao `SPI=OK`
+- gui `b` qua UART thi monitor bao `BOOT=OK`
 - gui `k` qua UART thi monitor bao `PS2=OK`
 
 Thong so UART:
@@ -127,7 +127,7 @@ Day la duong di an toan nhat cho do an 6 thang, vi moi moc deu co cach test ro r
 
 Neu chua co board, dung phien ban mo phong tuong ung:
 
-1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `SPI=OK`, reply `PS2=OK`, va `HSYNC`
+1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, va `HSYNC`
 2. them testbench cho monitor shell UART
 3. them testbench cho bootloader SPI/SD o muc protocol don gian
 4. chi can hardware that o giai doan cuoi de xac nhan pinout va timing thuc te
