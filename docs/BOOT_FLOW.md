@@ -90,6 +90,8 @@ Milestone mo phong hien tai da cham duoc buoc nay o muc don gian:
 
 - lenh `b` trong monitor shell doc va validate header `RVPC` mau qua SPI model
 - testbench tra ve `BOOT=OK` neu header hop le
+- payload mau duoc copy vao SRAM
+- lenh `g` jump vao app mau trong SRAM va app phat ky tu `G` qua UART
 
 ### Buoc 4: copy payload
 

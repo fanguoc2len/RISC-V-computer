@@ -1,9 +1,11 @@
 #include "platform.h"
 
+static uint32_t boot_loaded;
+
 static void banner(void)
 {
     uart_puts("RV32 PC\n");
-    uart_puts("h=help l=led b=boot k=ps2\n> ");
+    uart_puts("h=help l=led b=boot k=ps2 g=go\n> ");
 }
 
 static void show_ps2_status(void)
@@ -17,7 +19,7 @@ static void show_ps2_status(void)
 
 static void show_help(void)
 {
-    uart_puts("CMDS:h l b k\n> ");
+    uart_puts("CMDS:h l b k g\n> ");
 }
 
 static void retry_sd_boot(void)
@@ -25,16 +27,18 @@ static void retry_sd_boot(void)
     static const uint8_t expected_header[] = {
         0x52u, 0x56u, 0x50u, 0x43u,
         0x00u, 0x00u, 0x00u, 0x10u,
-        0x10u, 0x00u, 0x00u, 0x00u,
+        0x1Cu, 0x00u, 0x00u, 0x00u,
         0x00u, 0x00u, 0x00u, 0x10u,
-        0x4Cu, 0x00u, 0x00u, 0x00u,
+        0x49u, 0x5Eu, 0xD5u, 0x45u,
         0x01u, 0x00u, 0x00u, 0x00u,
         0x00u, 0x00u, 0x00u, 0x00u,
         0x00u, 0x00u, 0x00u, 0x00u,
     };
+    volatile uint8_t *dst = (volatile uint8_t *)SRAM_BASE;
     unsigned int i;
 
     spi_set_divider(250u);
+    boot_loaded = 0u;
     for (i = 0; i < sizeof(expected_header); ++i) {
         if (spi_transfer_byte(0xFFu) != expected_header[i]) {
             uart_puts("BOOT=ER\n> ");
@@ -42,7 +46,25 @@ static void retry_sd_boot(void)
         }
     }
 
+    for (i = 0; i < 28u; ++i) {
+        dst[i] = spi_transfer_byte(0xFFu);
+    }
+
+    boot_loaded = 1u;
     uart_puts("BOOT=OK\n> ");
+}
+
+static void run_loaded_program(void)
+{
+    void (*entry)(void) = (void (*)(void))SRAM_BASE;
+
+    if (!boot_loaded) {
+        uart_puts("GO=ER\n> ");
+        return;
+    }
+
+    entry();
+    uart_puts("GO=RET\n> ");
 }
 
 int main(void)
@@ -70,6 +92,9 @@ int main(void)
                 break;
             case 'k':
                 show_ps2_status();
+                break;
+            case 'g':
+                run_loaded_program();
                 break;
             case 'l':
                 led_value ^= 1u;

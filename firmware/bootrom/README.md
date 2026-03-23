@@ -17,6 +17,7 @@ Hien tai file `bootrom.mem` o root repo la **monitor image** de Vivado synthesiz
 - nhan lenh `l` de toggle `LED0`
 - nhan lenh `b` de validate header raw boot image `RVPC`
 - nhan lenh `k` de chay PS/2 smoke check
+- nhan lenh `g` de jump vao app mau da load trong SRAM
 
 Ban co 2 duong de tiep tuc:
 

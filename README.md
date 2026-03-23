@@ -125,9 +125,11 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - shell tra loi lenh `l` bang chuoi `LED=0`
 - shell tra loi lenh `b` bang chuoi `BOOT=OK`
 - shell tra loi lenh `k` bang chuoi `PS2=OK`
+- shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
 - `LED0` thuc su toggle sau lenh UART
 - `SPI SCLK` co hoat dong trong luc test `b`
 - lenh `b` validate duoc header raw boot image `RVPC` qua SPI model
+- lenh `b` copy duoc payload vao SRAM va lenh `g` jump duoc vao SRAM app mau
 - `VGA HSYNC` co toggle
 
 De regenerate `bootrom.mem` ma khong can RISC-V GCC:

@@ -6,6 +6,7 @@ module top_basys3_tb;
     localparam integer UART_BIT_CLKS = CLK_FREQ_HZ / UART_BAUD;
     localparam integer PS2_HALF_CLKS = 200;
     localparam integer BOOT_HEADER_BYTES = 32;
+    localparam integer BOOT_PAYLOAD_BYTES = 28;
 
     reg clk;
     reg btnC;
@@ -47,6 +48,7 @@ module top_basys3_tb;
     reg led_zero_msg_seen;
     reg boot_ok_seen;
     reg ps2_ok_seen;
+    reg app_go_seen;
 
     wire uart_mon_tx_unused;
     wire [31:0] uart_mon_div_do;
@@ -65,7 +67,7 @@ module top_basys3_tb;
                 5: spi_image_byte = 8'h00;
                 6: spi_image_byte = 8'h00;
                 7: spi_image_byte = 8'h10;
-                8: spi_image_byte = 8'h10;
+                8: spi_image_byte = 8'h1C;
                 9: spi_image_byte = 8'h00;
                 10: spi_image_byte = 8'h00;
                 11: spi_image_byte = 8'h00;
@@ -73,10 +75,10 @@ module top_basys3_tb;
                 13: spi_image_byte = 8'h00;
                 14: spi_image_byte = 8'h00;
                 15: spi_image_byte = 8'h10;
-                16: spi_image_byte = 8'h4C;
-                17: spi_image_byte = 8'h00;
-                18: spi_image_byte = 8'h00;
-                19: spi_image_byte = 8'h00;
+                16: spi_image_byte = 8'h49;
+                17: spi_image_byte = 8'h5E;
+                18: spi_image_byte = 8'hD5;
+                19: spi_image_byte = 8'h45;
                 20: spi_image_byte = 8'h01;
                 21: spi_image_byte = 8'h00;
                 22: spi_image_byte = 8'h00;
@@ -89,22 +91,34 @@ module top_basys3_tb;
                 29: spi_image_byte = 8'h00;
                 30: spi_image_byte = 8'h00;
                 31: spi_image_byte = 8'h00;
-                32: spi_image_byte = 8'h13;
-                33: spi_image_byte = 8'h00;
+                32: spi_image_byte = 8'hB7;
+                33: spi_image_byte = 8'h12;
                 34: spi_image_byte = 8'h00;
-                35: spi_image_byte = 8'h00;
+                35: spi_image_byte = 8'h20;
                 36: spi_image_byte = 8'h13;
-                37: spi_image_byte = 8'h00;
-                38: spi_image_byte = 8'h00;
+                37: spi_image_byte = 8'h03;
+                38: spi_image_byte = 8'hA0;
                 39: spi_image_byte = 8'h00;
-                40: spi_image_byte = 8'h13;
-                41: spi_image_byte = 8'h00;
-                42: spi_image_byte = 8'h00;
+                40: spi_image_byte = 8'h23;
+                41: spi_image_byte = 8'hA0;
+                42: spi_image_byte = 8'h62;
                 43: spi_image_byte = 8'h00;
-                44: spi_image_byte = 8'h13;
-                45: spi_image_byte = 8'h00;
+                44: spi_image_byte = 8'hB7;
+                45: spi_image_byte = 8'h02;
                 46: spi_image_byte = 8'h00;
-                47: spi_image_byte = 8'h00;
+                47: spi_image_byte = 8'h20;
+                48: spi_image_byte = 8'h13;
+                49: spi_image_byte = 8'h03;
+                50: spi_image_byte = 8'h70;
+                51: spi_image_byte = 8'h04;
+                52: spi_image_byte = 8'h23;
+                53: spi_image_byte = 8'hA2;
+                54: spi_image_byte = 8'h62;
+                55: spi_image_byte = 8'h00;
+                56: spi_image_byte = 8'h6F;
+                57: spi_image_byte = 8'h00;
+                58: spi_image_byte = 8'h00;
+                59: spi_image_byte = 8'h00;
                 default: spi_image_byte = 8'hFF;
             endcase
         end
@@ -260,6 +274,7 @@ module top_basys3_tb;
         led_zero_msg_seen = 1'b0;
         boot_ok_seen = 1'b0;
         ps2_ok_seen = 1'b0;
+        app_go_seen = 1'b0;
 
         $display("Starting top_basys3 smoke simulation...");
 
@@ -279,11 +294,14 @@ module top_basys3_tb;
         spi_shift_reg = 8'hFF;
         sd_miso = 1'b1;
         uart_send_byte(8'h62);
-        wait_for_prompt(4, 400000);
+        wait_for_prompt(4, 600000);
         ps2_send_byte(8'h1C);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6B);
         wait_for_prompt(5, 250000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h67);
+        repeat (120000) @(posedge clk);
 
         if (!banner_seen) begin
             $display("WARN: Did not observe full RV32 banner at startup; continuing because prompt/command path is alive.");
@@ -314,9 +332,36 @@ module top_basys3_tb;
             $finish;
         end
 
-        if (spi_sclk_posedge_count < (BOOT_HEADER_BYTES * 8)) begin
-            $display("FAIL: SPI SCLK toggled only %0d times; expected at least %0d for a full header read.",
-                     spi_sclk_posedge_count, BOOT_HEADER_BYTES * 8);
+        if (dut.soc_i.sram_i.mem[0] !== 32'h200012B7 ||
+            dut.soc_i.sram_i.mem[1] !== 32'h00A00313 ||
+            dut.soc_i.sram_i.mem[2] !== 32'h0062A023 ||
+            dut.soc_i.sram_i.mem[3] !== 32'h200002B7 ||
+            dut.soc_i.sram_i.mem[4] !== 32'h04700313 ||
+            dut.soc_i.sram_i.mem[5] !== 32'h0062A223 ||
+            dut.soc_i.sram_i.mem[6] !== 32'h0000006F) begin
+            $display("FAIL: SRAM payload words were not loaded as expected.");
+            $display("      mem[0]=0x%08x mem[1]=0x%08x mem[2]=0x%08x mem[3]=0x%08x",
+                     dut.soc_i.sram_i.mem[0], dut.soc_i.sram_i.mem[1],
+                     dut.soc_i.sram_i.mem[2], dut.soc_i.sram_i.mem[3]);
+            $display("      mem[4]=0x%08x mem[5]=0x%08x mem[6]=0x%08x",
+                     dut.soc_i.sram_i.mem[4], dut.soc_i.sram_i.mem[5],
+                     dut.soc_i.sram_i.mem[6]);
+            $finish;
+        end
+
+        if (!app_go_seen) begin
+            $display("FAIL: Did not observe SRAM app UART marker after sending 'g'.");
+            $finish;
+        end
+
+        if (led[3:0] !== 4'hA) begin
+            $display("FAIL: SRAM app did not drive LED pattern 0xA after 'g'.");
+            $finish;
+        end
+
+        if (spi_sclk_posedge_count < ((BOOT_HEADER_BYTES + BOOT_PAYLOAD_BYTES) * 8)) begin
+            $display("FAIL: SPI SCLK toggled only %0d times; expected at least %0d for header + payload read.",
+                     spi_sclk_posedge_count, (BOOT_HEADER_BYTES + BOOT_PAYLOAD_BYTES) * 8);
             $finish;
         end
 
@@ -399,6 +444,10 @@ module top_basys3_tb;
 
             if ({uart_shift5[31:0], uart_mon.recv_buf_data} == {8'h50, 8'h53, 8'h32, 8'h3D, 8'h4F}) begin
                 ps2_ok_seen <= 1'b1;
+            end
+
+            if (uart_mon.recv_buf_data == 8'h47) begin
+                app_go_seen <= 1'b1;
             end
 
             $display("INFO: UART monitor received byte 0x%02x at time %0t.", uart_mon.recv_buf_data, $time);

@@ -138,6 +138,10 @@ class Program:
     def j(self, label: str) -> None:
         self.jal("zero", label)
 
+    def jalr(self, rd: str, rs1: str, imm: int) -> None:
+        assert signed_range(imm, 12)
+        self.emit(((imm & 0xFFF) << 20) | (reg(rs1) << 15) | (0x0 << 12) | (reg(rd) << 7) | 0x67)
+
     def _encode_branch(self, funct3: int, rs1: int, rs2: int, imm: int) -> int:
         assert imm % 2 == 0
         assert signed_range(imm, 13)
@@ -214,6 +218,7 @@ def spi_transfer(p: Program, tx_byte: int, wait_label: str) -> None:
     p.li("t0", 0x00FA0006)
     p.beq("t1", "t0", wait_label)
     p.lw("t1", 4, "s3")
+    spi_end(p)
 
 
 def spi_expect(p: Program, tx_byte: int, expected: int, wait_label: str, ok_label: str, fail_label: str) -> None:
@@ -228,6 +233,7 @@ def build_bootrom() -> list[int]:
     gpio_base = 0x20001000
     spi_base = 0x20003000
     ps2_base = 0x20004000
+    sram_base = 0x10000000
     uart_div = 868
 
     p = Program()
@@ -237,6 +243,8 @@ def build_bootrom() -> list[int]:
     p.li("s2", 1)
     p.li("s3", spi_base)
     p.li("s4", ps2_base)
+    p.li("s5", 0)
+    p.li("s6", sram_base)
     p.sw("s2", 0, "s1")
     p.li("t0", uart_div)
     p.sw("t0", 0, "s0")
@@ -244,15 +252,24 @@ def build_bootrom() -> list[int]:
     boot_header = [
         0x52, 0x56, 0x50, 0x43,  # magic: 'RVPC'
         0x00, 0x00, 0x00, 0x10,  # load_addr: 0x1000_0000
-        0x10, 0x00, 0x00, 0x00,  # size_bytes: 16
+        0x1C, 0x00, 0x00, 0x00,  # size_bytes: 28
         0x00, 0x00, 0x00, 0x10,  # entry_addr: 0x1000_0000
-        0x4C, 0x00, 0x00, 0x00,  # checksum: 4 x 0x00000013
+        0x49, 0x5E, 0xD5, 0x45,  # checksum: demo SRAM app payload
         0x01, 0x00, 0x00, 0x00,  # version: 1
         0x00, 0x00, 0x00, 0x00,  # reserved0
         0x00, 0x00, 0x00, 0x00,  # reserved1
     ]
+    boot_payload = [
+        0xB7, 0x12, 0x00, 0x20,
+        0x13, 0x03, 0xA0, 0x00,
+        0x23, 0xA0, 0x62, 0x00,
+        0xB7, 0x02, 0x00, 0x20,
+        0x13, 0x03, 0x70, 0x04,
+        0x23, 0xA2, 0x62, 0x00,
+        0x6F, 0x00, 0x00, 0x00,
+    ]
 
-    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2\r\n> ")
+    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 g=go\r\n> ")
 
     p.label("main_loop")
     p.lw("a0", 4, "s0")
@@ -272,12 +289,14 @@ def build_bootrom() -> list[int]:
     p.beq("a0", "t0", "cmd_spi")
     p.li("t0", ord("k"))
     p.beq("a0", "t0", "cmd_ps2")
+    p.li("t0", ord("g"))
+    p.beq("a0", "t0", "cmd_go")
 
     puts(p, "s0", "t0", "?\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_help")
-    puts(p, "s0", "t0", "CMDS:h l b k\r\n> ")
+    puts(p, "s0", "t0", "CMDS:h l b k g\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_led")
@@ -296,6 +315,8 @@ def build_bootrom() -> list[int]:
     p.j("main_loop")
 
     p.label("cmd_spi")
+    p.li("s5", 0)
+    p.li("t2", sram_base)
     for index, expected in enumerate(boot_header):
         ok_label = "boot_ok" if index == len(boot_header) - 1 else f"boot_ok_{index}"
         spi_expect(p, 0xFF, expected, f"boot_wait_{index}", ok_label, "boot_fail")
@@ -303,12 +324,17 @@ def build_bootrom() -> list[int]:
             p.label(ok_label)
 
     p.label("boot_ok")
-    spi_end(p)
+    for index, _ in enumerate(boot_payload):
+        spi_transfer(p, 0xFF, f"payload_wait_{index}")
+        p.sb("t1", 0, "t2")
+        if index != len(boot_payload) - 1:
+            p.addi("t2", "t2", 1)
+    p.li("s5", 1)
     puts(p, "s0", "t0", "BOOT=OK\r\n> ")
     p.j("main_loop")
 
     p.label("boot_fail")
-    spi_end(p)
+    p.li("s5", 0)
     puts(p, "s0", "t0", "BOOT=ER\r\n> ")
     p.j("main_loop")
 
@@ -328,6 +354,14 @@ def build_bootrom() -> list[int]:
 
     p.label("ps2_ok")
     puts(p, "s0", "t0", "PS2=OK\r\n> ")
+    p.j("main_loop")
+
+    p.label("cmd_go")
+    p.beq("s5", "zero", "go_fail")
+    p.jalr("zero", "s6", 0)
+
+    p.label("go_fail")
+    puts(p, "s0", "t0", "GO=ER\r\n> ")
     p.j("main_loop")
 
     p.resolve()
