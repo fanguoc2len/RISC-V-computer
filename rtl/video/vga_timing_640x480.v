@@ -19,7 +19,7 @@ module vga_timing_640x480 (
     localparam V_BACK    = 10'd33;
     localparam V_TOTAL   = V_VISIBLE + V_FRONT + V_SYNC + V_BACK;
 
-    always @(posedge clk_pix) begin
+    always @(posedge clk_pix or negedge resetn) begin
         if (!resetn) begin
             x <= 10'd0;
             y <= 10'd0;
