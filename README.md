@@ -59,7 +59,7 @@ Phien ban hien tai cung cap:
 
 - core `picorv32.v` chinh thuc
 - SoC memory-mapped don gian
-- boot ROM smoke image de de test synth/sim ngay
+- boot ROM monitor image co san de test synth/sim ngay
 - source firmware boot ROM de phat trien tiep
 - VGA test pattern de bring-up man hinh
 - PS/2 va SPI o muc khoi tao/phat trien tiep
@@ -101,8 +101,8 @@ Co 2 cach:
 1. GUI:
    - mo Vivado
    - `Tools -> Run Tcl Script...`
-   - chon `scripts/create_vivado_project.tcl`
-   - sau do `Run Simulation`
+   - chon `scripts/run_vivado_smoke_sim_gui.tcl`
+   - script nay se giu Vivado mo sau khi simulation xong
 
 2. Batch tu Windows CMD:
 
@@ -116,6 +116,53 @@ Script nay se:
 - set `top_basys3_tb` cho `sim_1`
 - chay behavioral simulation den khi testbench `$finish`
 - ghi log vao `build\vivado_smoke_sim.log`
+- dong project va thoat Vivado khi chay o che do batch
+
+Ban smoke sim hien tai tu check 4 dau hieu:
+
+- UART banner co chu `RV32`
+- shell tra loi lenh `h` bang chuoi `CMDS:`
+- shell tra loi lenh `l` bang chuoi `LED=0`
+- shell tra loi lenh `b` bang chuoi `SPI=OK`
+- shell tra loi lenh `k` bang chuoi `PS2=OK`
+- `LED0` thuc su toggle sau lenh UART
+- `SPI SCLK` co hoat dong trong luc test `b`
+- `VGA HSYNC` co toggle
+
+De regenerate `bootrom.mem` ma khong can RISC-V GCC:
+
+```bat
+scripts\gen_bootrom.bat
+```
+
+## Build va nap Basys 3 tren Windows
+
+Sau khi smoke simulation da pass, day la duong di tiep theo de bring-up board that:
+
+1. Tao bitstream:
+
+```bat
+scripts\run_vivado_build.bat
+```
+
+2. Nap FPGA qua JTAG:
+
+```bat
+scripts\program_basys3.bat
+```
+
+3. Sau khi nap xong, kiem tra:
+   - UART ra banner monitor o `115200 8N1`
+   - gui `h` de xem help
+   - gui `l` de toggle `LED0`
+   - man hinh VGA hien test pattern
+
+Log mac dinh:
+
+- `build\vivado_build.log`
+- `build\program_basys3.log`
+
+Xem them checklist chi tiet trong [Board Bring-up](docs/BOARD_BRINGUP.md).
 
 ## Goi y trien khai theo tung moc
 
@@ -124,10 +171,18 @@ Script nay se:
 3. Sau khi boot duoc binary vao RAM, moi lam `VGA text mode`.
 4. Sau cung moi hop nhat keyboard + monitor shell.
 
+Neu chua co board that, hay coi behavioral simulation la "board ao" cua ban:
+
+1. khoa duoc UART/GPIO/VGA bang testbench
+2. xac nhan duoc monitor shell qua UART
+3. moi moc deu can co self-check trong simulation truoc khi nghi den phan cung that
+
 ## Tai lieu
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Boot Flow](docs/BOOT_FLOW.md)
+- [Boot Image Format](docs/BOOT_IMAGE_FORMAT.md)
+- [Board Bring-up](docs/BOARD_BRINGUP.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Debug Guide](docs/DEBUG_GUIDE.md)
 

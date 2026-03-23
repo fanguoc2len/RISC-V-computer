@@ -41,11 +41,13 @@ module ps2_keyboard_mmio (
                 if (bit_count == 4'd10) begin
                     bit_count <= 4'd0;
 
-                    if ((shift_reg[0] == 1'b0) && (ps2_data_sync[2] == 1'b1)) begin
+                    // After 10 captured bits (start + 8 data + parity), the start bit
+                    // sits in shift_reg[1] and the data byte in shift_reg[9:2].
+                    if ((shift_reg[1] == 1'b0) && (ps2_data_sync[2] == 1'b1)) begin
                         if (rx_valid) begin
                             overflow <= 1'b1;
                         end
-                        rx_data <= shift_reg[8:1];
+                        rx_data <= shift_reg[9:2];
                         rx_valid <= 1'b1;
                     end
                 end else begin

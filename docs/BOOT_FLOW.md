@@ -45,6 +45,15 @@ struct boot_image_header {
 
 Payload nam ngay sau header.
 
+Repo cung cap script de pack raw image:
+
+```text
+scripts/gen_raw_boot_image.py
+scripts/gen_raw_boot_image.bat
+```
+
+Xem them [Boot Image Format](BOOT_IMAGE_FORMAT.md).
+
 ## Quy trinh Boot ROM
 
 ### Buoc 1: bring-up co ban

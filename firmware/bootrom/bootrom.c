@@ -30,22 +30,31 @@ static void banner(void)
 
 static void show_ps2_status(void)
 {
-    uart_puts("PS/2 status = 0x");
-    put_hex32(PS2_STATUS);
-    uart_puts(", data = 0x");
-    put_hex32(PS2_DATA);
-    uart_puts("\n");
+    if ((PS2_STATUS == 0x1u) && ((PS2_DATA & 0xFFu) == 0x1Cu)) {
+        uart_puts("PS2=OK\n");
+    } else {
+        uart_puts("PS2=ER\n");
+    }
 }
 
 static void show_help(void)
 {
-    uart_puts("System ready. Waiting on UART/PS2.\n");
+    uart_puts("System ready. Waiting on UART/SPI/PS2.\n");
 }
 
 static void retry_sd_boot(void)
 {
-    uart_puts("SPI/SD boot loader chua duoc hoan thien.\n");
-    uart_puts("Milestone tiep theo: doc sector header va copy payload vao SRAM.\n");
+    uint8_t rx;
+
+    spi_set_divider(250u);
+    rx = spi_transfer_byte(0xA5u);
+
+    uart_puts("SPI=");
+    if (rx == 0x3Cu) {
+        uart_puts("OK\n");
+    } else {
+        uart_puts("ER\n");
+    }
 }
 
 int main(void)
