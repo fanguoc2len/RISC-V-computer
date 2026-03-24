@@ -8,7 +8,9 @@ module ps2_keyboard_mmio (
     output reg         ready,
     output reg  [31:0] rdata,
     input  wire        ps2_clk,
-    input  wire        ps2_data
+    input  wire        ps2_data,
+    output wire [7:0]  debug_rx_data,
+    output wire        debug_rx_valid
 );
     reg [2:0] ps2_clk_sync;
     reg [2:0] ps2_data_sync;
@@ -19,6 +21,8 @@ module ps2_keyboard_mmio (
     reg       overflow;
 
     wire ps2_clk_fall = (ps2_clk_sync[2:1] == 2'b10);
+    assign debug_rx_data = rx_data;
+    assign debug_rx_valid = rx_valid;
 
     always @(posedge clk) begin
         ps2_clk_sync <= {ps2_clk_sync[1:0], ps2_clk};

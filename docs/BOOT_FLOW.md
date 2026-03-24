@@ -9,9 +9,9 @@ Vi vay, boot flow duoc de xuat la:
 1. reset vao Boot ROM
 2. init UART
 3. in banner
-4. init SPI
-5. doc boot image tu SD card
-6. copy vao SRAM
+4. auto-thu boot image tu storage
+5. neu fail thi fallback ve monitor shell
+6. neu can thi retry boot bang lenh UART
 7. jump vao entry point
 
 ## Tai sao khong nen FAT32 ngay
@@ -88,10 +88,15 @@ Neu lam duoc `CMD17` doc 1 block 512 byte la da du cho boot raw image.
 
 Milestone mo phong hien tai da cham duoc buoc nay o muc don gian:
 
-- lenh `b` trong monitor shell doc va validate header `RVPC` mau qua SPI model
+- lenh `b` trong monitor shell doc header `RVPC` mau qua SPI model
+- ngay sau reset, monitor cung auto-thu boot image mot lan
+- Boot ROM parse duoc `load_addr`, `size_bytes`, `entry_addr` thay vi hardcode dia chi SRAM
+- Boot ROM tinh checksum payload trong luc copy va so sanh voi field `checksum` trong header
+- smoke sim co y dat `load_addr = entry_addr = 0x1000_0020` de chung minh logic parse header dang duoc dung that
 - testbench tra ve `BOOT=OK` neu header hop le
-- payload mau duoc copy vao SRAM
-- lenh `g` jump vao app mau trong SRAM va app phat ky tu `G` qua UART
+- payload mau duoc copy vao SRAM theo `load_addr`
+- Boot ROM ghi `boot info block` vao dau SRAM de app biet no duoc load nhu the nao
+- lenh `g` jump vao `entry_addr` va app doc lai `boot info block` truoc khi phat marker `I` va `G` qua UART
 
 ### Buoc 4: copy payload
 
@@ -111,13 +116,22 @@ Neu SD boot fail thi khong nen treo im.
 Nen vao che do monitor:
 
 - in loi qua UART
+- `i`: in boot state hien tai (`boot_loaded`, `entry`)
+- `m`: dump nhanh `boot info block` va word dau cua app trong SRAM
+- `t`: doc timer counter de kiem tra peripheral timer/MMIO dang song
 - cho lenh don gian:
   - `h`: help
-  - `m`: dump thong tin memory
   - `k`: doc keyboard status
   - `b`: retry boot
 
 Nhu vay luc demo, du SD card co loi ban van con duong de debug.
+
+Ngoai UART monitor, milestone hien tai cung da co VGA status panel don gian:
+
+- hien `LED`
+- hien `TIME`
+- hien byte `PS2` gan nhat
+- van giu nen color bars de debug timing/man hinh nhanh
 
 ## Goi y milestone
 

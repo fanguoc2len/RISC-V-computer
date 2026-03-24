@@ -33,7 +33,7 @@ Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbo
 - `rtl/soc/riscv_pc_soc.v`: SoC chinh
 - `rtl/memory/`: ROM va SRAM
 - `rtl/peripherals/`: UART/GPIO/timer/SPI/PS2
-- `rtl/video/`: VGA timing va test pattern
+- `rtl/video/`: VGA timing va status panel
 - `firmware/bootrom/`: source boot ROM
 - `constraints/basys3_top.xdc`: pin constraint cho Basys 3
 - `scripts/create_vivado_project.tcl`: tao project Vivado nhanh
@@ -61,9 +61,10 @@ Phien ban hien tai cung cap:
 - SoC memory-mapped don gian
 - boot ROM monitor image co san de test synth/sim ngay
 - source firmware boot ROM de phat trien tiep
-- VGA test pattern de bring-up man hinh
+- VGA status panel de bring-up man hinh, van giu nen color bars de debug nhanh
 - PS/2 va SPI o muc khoi tao/phat trien tiep
 - testbench smoke test cho Vivado simulation
+- boot monitor co auto-boot thu image SPI ngay sau reset, sau do fallback ve UART shell
 
 ## Cach dung nhanh
 
@@ -125,11 +126,20 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - shell tra loi lenh `l` bang chuoi `LED=0`
 - shell tra loi lenh `b` bang chuoi `BOOT=OK`
 - shell tra loi lenh `k` bang chuoi `PS2=OK`
+- shell tra loi lenh `i` bang thong tin boot hien tai (`BOOTLD`, `ENTRY`)
+- shell tra loi lenh `m` bang memory dump ngan (`BI0`, `APP0`)
+- shell tra loi lenh `t` bang thong tin timer (`TIME=`)
 - shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
+- reset xong monitor tu thu boot image mot lan truoc khi cho lenh tay
 - `LED0` thuc su toggle sau lenh UART
 - `SPI SCLK` co hoat dong trong luc test `b`
-- lenh `b` validate duoc header raw boot image `RVPC` qua SPI model
-- lenh `b` copy duoc payload vao SRAM va lenh `g` jump duoc vao SRAM app mau
+- lenh `b` parse duoc `load_addr`, `size_bytes`, `entry_addr` tu header raw boot image `RVPC`
+- lenh `b` tu tinh checksum payload trong luc copy va chi `BOOT=OK` khi checksum hop le
+- smoke sim hien tai co chu y dung `load_addr = entry_addr = 0x1000_0020` de chung minh Boot ROM khong con hardcode `SRAM_BASE`
+- Boot ROM ghi `boot info block` vao `0x1000_0000 .. 0x1000_001F` gom `magic/load_addr/size/entry/checksum/status`
+- lenh `b` copy duoc payload vao SRAM theo thong tin trong header va lenh `g` jump duoc vao SRAM app mau
+- app SRAM mau tu doc `boot info block`, xac nhan `magic + entry_addr`, roi moi phat marker `I` va `G` qua UART
+- VGA status panel hien truc tiep `LED`, `TIME`, `PS2`
 - `VGA HSYNC` co toggle
 
 De regenerate `bootrom.mem` ma khong can RISC-V GCC:
@@ -158,7 +168,7 @@ scripts\program_basys3.bat
    - UART ra banner monitor o `115200 8N1`
    - gui `h` de xem help
    - gui `l` de toggle `LED0`
-   - man hinh VGA hien test pattern
+   - man hinh VGA hien status panel tren nen color bars
 
 Log mac dinh:
 

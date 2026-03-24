@@ -7,7 +7,8 @@ module timer_mmio (
     input  wire [3:0]  wstrb,
     output reg         ready,
     output reg  [31:0] rdata,
-    output wire        irq
+    output wire        irq,
+    output wire [31:0] debug_counter_lo
 );
     reg [63:0] counter;
     reg [63:0] compare;
@@ -15,6 +16,7 @@ module timer_mmio (
     reg        irq_pending;
 
     assign irq = irq_enable && irq_pending;
+    assign debug_counter_lo = counter[31:0];
 
     always @(posedge clk) begin
         ready <= 1'b0;

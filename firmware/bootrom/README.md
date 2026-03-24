@@ -12,12 +12,17 @@ Muc tieu firmware:
 Hien tai file `bootrom.mem` o root repo la **monitor image** de Vivado synthesize/simulate duoc ngay, khong can RISC-V toolchain:
 
 - in banner `RV32 PC`
+- auto-thu boot image qua SPI ngay sau reset
 - hien prompt UART
 - nhan lenh `h` de in help
 - nhan lenh `l` de toggle `LED0`
 - nhan lenh `b` de validate header raw boot image `RVPC`
 - nhan lenh `k` de chay PS/2 smoke check
+- nhan lenh `i` de in thong tin boot hien tai
+- nhan lenh `m` de dump nhanh `boot info block` va word dau cua app trong SRAM
+- nhan lenh `t` de doc timer counter qua MMIO
 - nhan lenh `g` de jump vao app mau da load trong SRAM
+- khi boot thanh cong, Boot ROM ghi `boot info block` vao dau SRAM de app mau co the doc lai thong tin image
 
 Ban co 2 duong de tiep tuc:
 

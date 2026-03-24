@@ -14,7 +14,10 @@ module riscv_pc_soc #(
     output wire        spi_sclk,
     output wire        spi_mosi,
     input  wire        spi_miso,
-    output wire [31:0] gpio_out
+    output wire [31:0] gpio_out,
+    output wire [31:0] debug_timer_lo,
+    output wire [7:0]  debug_ps2_data,
+    output wire        debug_ps2_valid
 );
     localparam [31:0] BOOT_ROM_BASE  = 32'h0000_0000;
     localparam [31:0] BOOT_ROM_BYTES = BOOT_ROM_WORDS * 4;
@@ -166,15 +169,16 @@ module riscv_pc_soc #(
     );
 
     timer_mmio timer_i (
-        .clk    (clk),
-        .resetn (resetn),
-        .valid  (sel_timer && !mem_ready),
-        .addr   (mem_addr - TIMER_BASE),
-        .wdata  (mem_wdata),
-        .wstrb  (mem_wstrb),
-        .ready  (timer_ready),
-        .rdata  (timer_rdata),
-        .irq    (timer_irq)
+        .clk              (clk),
+        .resetn           (resetn),
+        .valid            (sel_timer && !mem_ready),
+        .addr             (mem_addr - TIMER_BASE),
+        .wdata            (mem_wdata),
+        .wstrb            (mem_wstrb),
+        .ready            (timer_ready),
+        .rdata            (timer_rdata),
+        .irq              (timer_irq),
+        .debug_counter_lo (debug_timer_lo)
     );
 
     spi_master_mmio spi_i (
@@ -193,15 +197,17 @@ module riscv_pc_soc #(
     );
 
     ps2_keyboard_mmio ps2_i (
-        .clk      (clk),
-        .resetn   (resetn),
-        .valid    (sel_ps2 && !mem_ready),
-        .addr     (mem_addr - PS2_BASE),
-        .wdata    (mem_wdata),
-        .wstrb    (mem_wstrb),
-        .ready    (ps2_ready),
-        .rdata    (ps2_rdata),
-        .ps2_clk  (ps2_clk),
-        .ps2_data (ps2_data)
+        .clk            (clk),
+        .resetn         (resetn),
+        .valid          (sel_ps2 && !mem_ready),
+        .addr           (mem_addr - PS2_BASE),
+        .wdata          (mem_wdata),
+        .wstrb          (mem_wstrb),
+        .ready          (ps2_ready),
+        .rdata          (ps2_rdata),
+        .ps2_clk        (ps2_clk),
+        .ps2_data       (ps2_data),
+        .debug_rx_data  (debug_ps2_data),
+        .debug_rx_valid (debug_ps2_valid)
     );
 endmodule
