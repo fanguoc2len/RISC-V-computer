@@ -21,6 +21,7 @@ module top_basys3 (
     wire pixel_clk = pixel_divider[1];
     wire [31:0] gpio_out;
     wire [31:0] debug_timer_lo;
+    wire [31:0] debug_boot_status;
     wire [7:0] debug_ps2_data;
     wire debug_ps2_valid;
 
@@ -50,6 +51,7 @@ module top_basys3 (
         .spi_miso        (sd_miso),
         .gpio_out        (gpio_out),
         .debug_timer_lo  (debug_timer_lo),
+        .debug_boot_status (debug_boot_status),
         .debug_ps2_data  (debug_ps2_data),
         .debug_ps2_valid (debug_ps2_valid)
     );
@@ -60,6 +62,7 @@ module top_basys3 (
         .accent    (gpio_out[7:0]),
         .led_value (gpio_out[15:0]),
         .timer_lo  (debug_timer_lo),
+        .boot_status (debug_boot_status),
         .ps2_data  (debug_ps2_data),
         .ps2_valid (debug_ps2_valid),
         .hsync     (Hsync),

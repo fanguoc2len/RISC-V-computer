@@ -25,7 +25,21 @@ if errorlevel 1 (
   exit /b %errorlevel%
 )
 
+if not exist "%REPO_DIR%\build\vivado\risc_v_computer.runs\impl_1\top_basys3.bit" (
+  echo Vivado build FAILED.
+  echo Khong tim thay bitstream sau khi Vivado ket thuc.
+  echo Xem log: "%REPO_DIR%\build\vivado_build.log"
+  exit /b 1
+)
+
 echo Vivado build FINISHED.
 echo Bitstream du kien nam o:
 echo   "%REPO_DIR%\build\vivado\risc_v_computer.runs\impl_1\top_basys3.bit"
+if exist "%REPO_DIR%\build\build_status.txt" (
+  echo Build summary:
+  type "%REPO_DIR%\build\build_status.txt"
+)
+echo Reports:
+echo   "%REPO_DIR%\build\timing_summary_post_route.rpt"
+echo   "%REPO_DIR%\build\utilization_post_route.rpt"
 echo Log: "%REPO_DIR%\build\vivado_build.log"

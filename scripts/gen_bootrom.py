@@ -362,6 +362,12 @@ def build_bootrom() -> list[int]:
     sample_load_addr = sram_base + 0x20
     sample_entry_addr = sample_load_addr
     boot_info_magic = 0x49425652
+    boot_status_ok = 0x00000001
+    boot_status_bad_magic = 0x000000E1
+    boot_status_bad_range = 0x000000E2
+    boot_status_bad_size = 0x000000E3
+    boot_status_bad_entry = 0x000000E4
+    boot_status_bad_checksum = 0x000000E5
     uart_div = 868
 
     p = Program()
@@ -468,7 +474,7 @@ def build_bootrom() -> list[int]:
     p.sw("zero", 28, "t0")
     for index, expected in enumerate(boot_header[:4]):
         ok_label = f"boot_ok_{index}"
-        spi_expect(p, 0xFF, expected, f"boot_wait_{index}", ok_label, "boot_fail")
+        spi_expect(p, 0xFF, expected, f"boot_wait_{index}", ok_label, "boot_bad_magic")
         if index != len(boot_header[:4]) - 1:
             p.label(ok_label)
 
@@ -480,32 +486,32 @@ def build_bootrom() -> list[int]:
 
     for index, expected in enumerate(boot_header[20:]):
         ok_label = "boot_tail_ok" if index == len(boot_header[20:]) - 1 else f"boot_tail_ok_{index}"
-        spi_expect(p, 0xFF, expected, f"boot_tail_wait_{index}", ok_label, "boot_fail")
+        spi_expect(p, 0xFF, expected, f"boot_tail_wait_{index}", ok_label, "boot_bad_magic")
         if index != len(boot_header[20:]) - 1:
             p.label(ok_label)
 
     p.label("boot_tail_ok")
     p.li("t0", sram_base)
     p.sltu("t2", "s6", "t0")
-    p.bne("t2", "zero", "boot_fail")
+    p.bne("t2", "zero", "boot_bad_range")
 
-    p.beq("s7", "zero", "boot_fail")
+    p.beq("s7", "zero", "boot_bad_size")
     p.li("t0", sram_bytes)
     p.sltu("t2", "t0", "s7")
-    p.bne("t2", "zero", "boot_fail")
+    p.bne("t2", "zero", "boot_bad_size")
 
     p.add("s11", "s6", "s7")
     p.sltu("t2", "s11", "s6")
-    p.bne("t2", "zero", "boot_fail")
+    p.bne("t2", "zero", "boot_bad_range")
 
     p.li("t0", sram_base + sram_bytes)
     p.sltu("t2", "t0", "s11")
-    p.bne("t2", "zero", "boot_fail")
+    p.bne("t2", "zero", "boot_bad_range")
 
     p.sltu("t2", "s8", "s6")
-    p.bne("t2", "zero", "boot_fail")
+    p.bne("t2", "zero", "boot_bad_entry")
     p.sltu("t2", "s8", "s11")
-    p.beq("t2", "zero", "boot_fail")
+    p.beq("t2", "zero", "boot_bad_entry")
 
     copy_reg(p, "t2", "s6")
     copy_reg(p, "t3", "s7")
@@ -553,7 +559,7 @@ def build_bootrom() -> list[int]:
     p.add("s10", "s10", "t5")
 
     p.label("payload_checksum_done")
-    p.bne("s10", "s9", "boot_fail")
+    p.bne("s10", "s9", "boot_bad_checksum")
     p.li("t0", sram_base)
     p.li("t1", boot_info_magic)
     p.sw("t1", 0, "t0")
@@ -561,7 +567,7 @@ def build_bootrom() -> list[int]:
     p.sw("s7", 8, "t0")
     p.sw("s8", 12, "t0")
     p.sw("s9", 16, "t0")
-    p.li("t1", 1)
+    p.li("t1", boot_status_ok)
     p.sw("t1", 20, "t0")
     p.sw("zero", 24, "t0")
     p.sw("zero", 28, "t0")
@@ -569,8 +575,30 @@ def build_bootrom() -> list[int]:
     puts(p, "s0", "t0", "BOOT=OK\r\n> ")
     p.j("main_loop")
 
+    p.label("boot_bad_magic")
+    p.li("a4", boot_status_bad_magic)
+    p.j("boot_fail")
+
+    p.label("boot_bad_range")
+    p.li("a4", boot_status_bad_range)
+    p.j("boot_fail")
+
+    p.label("boot_bad_size")
+    p.li("a4", boot_status_bad_size)
+    p.j("boot_fail")
+
+    p.label("boot_bad_entry")
+    p.li("a4", boot_status_bad_entry)
+    p.j("boot_fail")
+
+    p.label("boot_bad_checksum")
+    p.li("a4", boot_status_bad_checksum)
+    p.j("boot_fail")
+
     p.label("boot_fail")
     p.li("s5", 0)
+    p.li("t0", sram_base)
+    p.sw("a4", 20, "t0")
     puts(p, "s0", "t0", "BOOT=ER\r\n> ")
     p.j("main_loop")
 
@@ -604,6 +632,10 @@ def build_bootrom() -> list[int]:
     p.label("info_boot_done")
     puts(p, "s0", "t0", " ENTRY=")
     put_hex_word(p, "s8", "info_entry")
+    puts(p, "s0", "t0", " STATUS=")
+    p.li("t3", sram_base)
+    p.lw("t1", 20, "t3")
+    put_hex_word(p, "t1", "info_status")
     puts(p, "s0", "t0", "\r\n> ")
     p.j("main_loop")
 

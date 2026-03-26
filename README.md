@@ -126,7 +126,7 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - shell tra loi lenh `l` bang chuoi `LED=0`
 - shell tra loi lenh `b` bang chuoi `BOOT=OK`
 - shell tra loi lenh `k` bang chuoi `PS2=OK`
-- shell tra loi lenh `i` bang thong tin boot hien tai (`BOOTLD`, `ENTRY`)
+- shell tra loi lenh `i` bang thong tin boot hien tai (`BOOTLD`, `ENTRY`, `STATUS`)
 - shell tra loi lenh `m` bang memory dump ngan (`BI0`, `APP0`)
 - shell tra loi lenh `t` bang thong tin timer (`TIME=`)
 - shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
@@ -139,7 +139,7 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - Boot ROM ghi `boot info block` vao `0x1000_0000 .. 0x1000_001F` gom `magic/load_addr/size/entry/checksum/status`
 - lenh `b` copy duoc payload vao SRAM theo thong tin trong header va lenh `g` jump duoc vao SRAM app mau
 - app SRAM mau tu doc `boot info block`, xac nhan `magic + entry_addr`, roi moi phat marker `I` va `G` qua UART
-- VGA status panel hien truc tiep `LED`, `TIME`, `PS2`
+- VGA status panel hien truc tiep `LED`, `TIME`, `PS2`, `STAT`
 - `VGA HSYNC` co toggle
 
 De regenerate `bootrom.mem` ma khong can RISC-V GCC:
@@ -158,6 +158,12 @@ Sau khi smoke simulation da pass, day la duong di tiep theo de bring-up board th
 scripts\run_vivado_build.bat
 ```
 
+Neu muon build trong Vivado GUI va giu cua so mo sau khi xong, chay:
+
+```tcl
+source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_build_gui.tcl
+```
+
 2. Nap FPGA qua JTAG:
 
 ```bat
@@ -166,13 +172,15 @@ scripts\program_basys3.bat
 
 3. Sau khi nap xong, kiem tra:
    - UART ra banner monitor o `115200 8N1`
+   - gui `i` de thay `BOOTLD=1 ENTRY=10000020 STATUS=00000001`
    - gui `h` de xem help
    - gui `l` de toggle `LED0`
-   - man hinh VGA hien status panel tren nen color bars
+   - man hinh VGA hien status panel tren nen color bars, dong `STAT` = `00000001`
 
 Log mac dinh:
 
 - `build\vivado_build.log`
+- `build\build_status.txt`
 - `build\program_basys3.log`
 
 Xem them checklist chi tiet trong [Board Bring-up](docs/BOARD_BRINGUP.md).

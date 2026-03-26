@@ -52,9 +52,10 @@ puts "  bitfile=$bitfile"
 
 if {![file exists $bitfile]} {
     puts "ERROR: Bitstream was not generated."
-    close_project
-    exit 1
+} else {
+    puts "GUI build finished. Vivado is still open."
+    puts "Check:"
+    puts "  $summary_file"
+    puts "  [file join $report_dir timing_summary_post_route.rpt]"
+    puts "  [file join $report_dir utilization_post_route.rpt]"
 }
-
-close_project
-exit

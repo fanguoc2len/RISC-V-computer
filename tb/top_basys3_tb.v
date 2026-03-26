@@ -14,6 +14,8 @@ module top_basys3_tb;
     localparam integer PANEL_LABEL_Y = 33;
     localparam integer PANEL_LED_DIGIT_X = 101;
     localparam integer PANEL_LED_DIGIT_Y = 33;
+    localparam integer PANEL_STATUS_OK_X = 152;
+    localparam integer PANEL_STATUS_OK_Y = 74;
 
     reg clk;
     reg btnC;
@@ -59,6 +61,7 @@ module top_basys3_tb;
     reg boot_ok_seen;
     reg ps2_ok_seen;
     reg info_reply_seen;
+    reg status_reply_seen;
     reg mem_dump_seen;
     reg time_reply_seen;
     reg app_info_seen;
@@ -68,6 +71,7 @@ module top_basys3_tb;
     reg panel_label_seen;
     reg panel_led_zero_seen;
     reg panel_led_a_seen;
+    reg panel_status_ok_seen;
 
     wire uart_mon_tx_unused;
     wire [31:0] uart_mon_div_do;
@@ -357,6 +361,7 @@ module top_basys3_tb;
         boot_ok_seen = 1'b0;
         ps2_ok_seen = 1'b0;
         info_reply_seen = 1'b0;
+        status_reply_seen = 1'b0;
         mem_dump_seen = 1'b0;
         time_reply_seen = 1'b0;
         app_info_seen = 1'b0;
@@ -366,6 +371,7 @@ module top_basys3_tb;
         panel_label_seen = 1'b0;
         panel_led_zero_seen = 1'b0;
         panel_led_a_seen = 1'b0;
+        panel_status_ok_seen = 1'b0;
 
         $display("Starting top_basys3 smoke simulation...");
 
@@ -392,7 +398,7 @@ module top_basys3_tb;
         wait_for_prompt(6, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h69);
-        wait_for_prompt(7, 800000);
+        wait_for_prompt(7, 1000000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6D);
         wait_for_prompt(8, 400000);
@@ -432,6 +438,11 @@ module top_basys3_tb;
 
         if (!info_reply_seen) begin
             $display("FAIL: Did not observe boot info reply after sending 'i'.");
+            $finish;
+        end
+
+        if (!status_reply_seen) begin
+            $display("FAIL: Did not observe boot status reply after sending 'i'.");
             $finish;
         end
 
@@ -554,6 +565,11 @@ module top_basys3_tb;
             $finish;
         end
 
+        if (!panel_status_ok_seen) begin
+            $display("FAIL: VGA status panel did not show boot status 0x00000001.");
+            $finish;
+        end
+
         $display("PASS: smoke simulation completed.");
         $finish;
     end
@@ -640,6 +656,11 @@ module top_basys3_tb;
                 $display("INFO: UART text matched ENTRY= at time %0t.", $time);
             end
 
+            if ({uart_shift7[47:0], uart_mon.recv_buf_data} == {8'h53, 8'h54, 8'h41, 8'h54, 8'h55, 8'h53, 8'h3D}) begin
+                status_reply_seen <= 1'b1;
+                $display("INFO: UART text matched STATUS= at time %0t.", $time);
+            end
+
             if ({uart_shift5[31:0], uart_mon.recv_buf_data} == {8'h41, 8'h50, 8'h50, 8'h30, 8'h3D}) begin
                 mem_dump_seen <= 1'b1;
                 $display("INFO: UART text matched APP0= at time %0t.", $time);
@@ -683,6 +704,12 @@ module top_basys3_tb;
                 (vgaRed == 4'hF) && (vgaGreen == 4'hF) && (vgaBlue == 4'hF)) begin
                 panel_led_a_seen <= 1'b1;
             end
+        end
+
+        if (dut.vga_i.active && (dut.vga_i.x == PANEL_STATUS_OK_X) && (dut.vga_i.y == PANEL_STATUS_OK_Y) &&
+            (dut.debug_boot_status == 32'h00000001) &&
+            (vgaRed == 4'hF) && (vgaGreen == 4'hF) && (vgaBlue == 4'hF)) begin
+            panel_status_ok_seen <= 1'b1;
         end
     end
 endmodule

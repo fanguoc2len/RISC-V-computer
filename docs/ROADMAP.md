@@ -1,5 +1,17 @@
 # Roadmap
 
+## Current status
+
+Tinh den 2026-03-26, nhanh hien tai da co:
+
+- smoke simulation pass end-to-end tren `top_basys3_tb`
+- monitor shell qua UART voi cac lenh `h l b k i m t g`
+- bootloader SPI raw image co `header/checksum/jump`
+- `boot info block` va `STATUS=00000001` sau khi boot thanh cong
+- VGA color bars + status panel (`LED`, `TIME`, `PS2`, `STAT`)
+- duong PS/2 co xac nhan trong smoke sim
+- app mau trong SRAM chay duoc va phat marker `I`, `G`
+
 ## Phase 1 - Nen toi thieu chay duoc
 
 Muc tieu:

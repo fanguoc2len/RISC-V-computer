@@ -4,6 +4,7 @@ module vga_status_panel (
     input  wire [7:0]  accent,
     input  wire [15:0] led_value,
     input  wire [31:0] timer_lo,
+    input  wire [31:0] boot_status,
     input  wire [7:0]  ps2_data,
     input  wire        ps2_valid,
     output wire        hsync,
@@ -15,7 +16,7 @@ module vga_status_panel (
     localparam integer PANEL_X0 = 12;
     localparam integer PANEL_Y0 = 12;
     localparam integer PANEL_W = 176;
-    localparam integer PANEL_H = 56;
+    localparam integer PANEL_H = 72;
     localparam integer TEXT_X0 = 16;
     localparam integer TEXT_Y0 = 16;
     localparam integer CHAR_SCALE = 2;
@@ -118,7 +119,7 @@ module vga_status_panel (
                         default: line_char = 8'h20;
                     endcase
                 end
-                default: begin
+                2'd2: begin
                     case (idx)
                         0: line_char = 8'h50; // P
                         1: line_char = 8'h53; // S
@@ -128,6 +129,24 @@ module vga_status_panel (
                         5: line_char = hex_ascii(ps2_data[3:0]);
                         6: line_char = 8'h20;
                         7: line_char = ps2_valid ? 8'h31 : 8'h30;
+                        default: line_char = 8'h20;
+                    endcase
+                end
+                default: begin
+                    case (idx)
+                        0: line_char = 8'h53; // S
+                        1: line_char = 8'h54; // T
+                        2: line_char = 8'h41; // A
+                        3: line_char = 8'h54; // T
+                        4: line_char = 8'h20;
+                        5: line_char = hex_ascii(boot_status[31:28]);
+                        6: line_char = hex_ascii(boot_status[27:24]);
+                        7: line_char = hex_ascii(boot_status[23:20]);
+                        8: line_char = hex_ascii(boot_status[19:16]);
+                        9: line_char = hex_ascii(boot_status[15:12]);
+                        10: line_char = hex_ascii(boot_status[11:8]);
+                        11: line_char = hex_ascii(boot_status[7:4]);
+                        12: line_char = hex_ascii(boot_status[3:0]);
                         default: line_char = 8'h20;
                     endcase
                 end
@@ -373,7 +392,7 @@ module vga_status_panel (
                 char_index = (panel_local_x - TEXT_X0) / CHAR_CELL_W;
                 col_in_cell = (panel_local_x - TEXT_X0) % CHAR_CELL_W;
 
-                if ((line_index >= 0) && (line_index < 3) &&
+                if ((line_index >= 0) && (line_index < 4) &&
                     (row_in_line >= 0) && (row_in_line < CHAR_CELL_H) &&
                     (char_index >= 0) && (char_index < 13) &&
                     (col_in_cell >= 0) && (col_in_cell < (GLYPH_W * CHAR_SCALE))) begin

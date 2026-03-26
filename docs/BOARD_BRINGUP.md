@@ -21,21 +21,30 @@ Mo Windows `CMD` tai thu muc repo va chay:
 scripts\run_vivado_build.bat
 ```
 
+Neu dang mo Vivado GUI va muon giu cua so mo de xem report/nghia cua slack sau khi build xong, dung:
+
+```tcl
+source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_build_gui.tcl
+```
+
 Script nay se:
 
 - tao lai project Vivado
 - run `synth_1`
 - run `impl_1` den `write_bitstream`
 - ghi report timing va utilization vao thu muc `build`
+- ghi them `build\build_status.txt` de tom tat `synth_status`, `impl_status`, `worst_setup_slack_ns`, `worst_hold_slack_ns`
 
 File can kiem tra sau khi build:
 
 - `build\vivado_build.log`
+- `build\build_status.txt`
 - `build\timing_summary_post_route.rpt`
 - `build\utilization_post_route.rpt`
 - `build\vivado\risc_v_computer.runs\impl_1\top_basys3.bit`
 
 Neu build loi, doc `vivado_build.log` truoc tien.
+Neu build xong nhung `worst_setup_slack_ns < 0`, van co the nap board de bring-up som, nhung can coi do la canh bao timing.
 
 ## 2. Nap board
 
@@ -71,10 +80,14 @@ Ban nen thay:
 
 - `LED0` sang on dinh
 - cong serial hien banner va prompt `> `
-- man hinh VGA co hinh mau test pattern
+- man hinh VGA co hinh mau test pattern va status panel
 - gui `l` qua UART thi `LED0` doi trang thai
 - gui `b` qua UART thi monitor bao `BOOT=OK`
 - gui `k` qua UART thi monitor bao `PS2=OK`
+- gui `i` qua UART thi monitor bao `BOOTLD=1 ENTRY=10000020 STATUS=00000001`
+- dong `STAT` tren VGA panel hien `00000001` sau khi autoboot thanh cong
+- gui `m` qua UART thi monitor in `BI0=` va `APP0=`
+- gui `t` qua UART thi monitor in `TIME=`
 - gui `g` qua UART thi app trong SRAM chay va doi `LED[3:0]` thanh `0xA`
 
 Thong so UART:
@@ -104,6 +117,7 @@ Uu tien kiem tra:
 - cac chan `vgaRed/Green/Blue` trong `.xdc` da dung chua
 
 Trong ban hien tai, VGA khong phu thuoc vao firmware phuc tap. Neu UART song ma VGA den, kha nang cao la loi o timing/pin/man hinh.
+Neu VGA co len nhung dong `STAT` khong phai `00000001`, uu tien kiem tra lai duong boot SPI/boot image.
 
 ## 6. Neu bitstream nap duoc nhung khong co dau hieu song
 
@@ -114,6 +128,7 @@ Check theo thu tu nay:
 3. `bootrom.mem` co duoc add vao project khong
 4. `LED0` co thuc su noi vao `gpio_out[0]` khong
 5. top implementation co phai la `top_basys3` khong
+6. `build\build_status.txt` co bao bitstream ton tai va timing hop le khong
 
 ## 7. Moc tiep theo nen lam
 
@@ -128,7 +143,7 @@ Day la duong di an toan nhat cho do an 6 thang, vi moi moc deu co cach test ro r
 
 Neu chua co board, dung phien ban mo phong tuong ung:
 
-1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, UART marker `G` tu SRAM app, va `HSYNC`
+1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, `STATUS=00000001`, UART marker `G` tu SRAM app, va `HSYNC`
 2. them testbench cho monitor shell UART
 3. them testbench cho bootloader SPI/SD o muc protocol don gian
 4. chi can hardware that o giai doan cuoi de xac nhan pinout va timing thuc te

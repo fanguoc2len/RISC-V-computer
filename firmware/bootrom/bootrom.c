@@ -2,6 +2,12 @@
 
 #define BOOT_INFO_MAGIC 0x49425652u
 #define BOOT_INFO_WORDS 8u
+#define BOOT_STATUS_OK 0x00000001u
+#define BOOT_STATUS_BAD_MAGIC 0x000000E1u
+#define BOOT_STATUS_BAD_RANGE 0x000000E2u
+#define BOOT_STATUS_BAD_SIZE 0x000000E3u
+#define BOOT_STATUS_BAD_ENTRY 0x000000E4u
+#define BOOT_STATUS_BAD_CHECKSUM 0x000000E5u
 
 static uint32_t boot_loaded;
 static uint32_t boot_entry_addr;
@@ -55,6 +61,8 @@ static void show_boot_info(void)
     uart_putc((char)(boot_loaded ? '1' : '0'));
     uart_puts(" ENTRY=");
     uart_put_hex32(boot_entry_addr);
+    uart_puts(" STATUS=");
+    uart_put_hex32(boot_info[5]);
     uart_puts("\n> ");
 }
 
@@ -90,7 +98,7 @@ static void write_boot_info(uint32_t load_addr, uint32_t size_bytes, uint32_t en
     boot_info[2] = size_bytes;
     boot_info[3] = entry_addr;
     boot_info[4] = checksum;
-    boot_info[5] = 1u;
+    boot_info[5] = BOOT_STATUS_OK;
     boot_info[6] = 0u;
     boot_info[7] = 0u;
 }
@@ -125,27 +133,32 @@ static void retry_sd_boot(void)
     reserved1 = spi_read_u32_le();
 
     if (magic != 0x43505652u) {
+        boot_info[5] = BOOT_STATUS_BAD_MAGIC;
         uart_puts("BOOT=ER\n> ");
         return;
     }
 
     if ((version != 1u) || (reserved0 != 0u) || (reserved1 != 0u)) {
+        boot_info[5] = BOOT_STATUS_BAD_MAGIC;
         uart_puts("BOOT=ER\n> ");
         return;
     }
 
     if ((load_addr < SRAM_BASE) || (size_bytes == 0u)) {
+        boot_info[5] = (size_bytes == 0u) ? BOOT_STATUS_BAD_SIZE : BOOT_STATUS_BAD_RANGE;
         uart_puts("BOOT=ER\n> ");
         return;
     }
 
     load_offset = load_addr - SRAM_BASE;
     if (load_offset > SRAM_SIZE_BYTES || size_bytes > (SRAM_SIZE_BYTES - load_offset)) {
+        boot_info[5] = BOOT_STATUS_BAD_RANGE;
         uart_puts("BOOT=ER\n> ");
         return;
     }
 
     if ((entry_addr < load_addr) || (entry_addr >= (load_addr + size_bytes))) {
+        boot_info[5] = BOOT_STATUS_BAD_ENTRY;
         uart_puts("BOOT=ER\n> ");
         return;
     }
@@ -169,6 +182,7 @@ static void retry_sd_boot(void)
     }
 
     if (checksum != expected_checksum) {
+        boot_info[5] = BOOT_STATUS_BAD_CHECKSUM;
         uart_puts("BOOT=ER\n> ");
         return;
     }

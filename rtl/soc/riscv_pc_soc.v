@@ -16,6 +16,7 @@ module riscv_pc_soc #(
     input  wire        spi_miso,
     output wire [31:0] gpio_out,
     output wire [31:0] debug_timer_lo,
+    output wire [31:0] debug_boot_status,
     output wire [7:0]  debug_ps2_data,
     output wire        debug_ps2_valid
 );
@@ -28,6 +29,7 @@ module riscv_pc_soc #(
     localparam [31:0] TIMER_BASE     = 32'h2000_2000;
     localparam [31:0] SPI_BASE       = 32'h2000_3000;
     localparam [31:0] PS2_BASE       = 32'h2000_4000;
+    localparam [31:0] BOOT_INFO_STATUS_ADDR = SRAM_BASE + 32'h0000_0014;
 
     wire        mem_valid;
     wire        mem_instr;
@@ -48,6 +50,7 @@ module riscv_pc_soc #(
     reg rom_ready;
     reg ram_ready;
     reg invalid_ready;
+    reg [31:0] debug_boot_status_r;
 
     wire sel_rom   = mem_valid && (mem_addr >= BOOT_ROM_BASE) && (mem_addr < BOOT_ROM_BASE + BOOT_ROM_BYTES);
     wire sel_ram   = mem_valid && (mem_addr >= SRAM_BASE)     && (mem_addr < SRAM_BASE + SRAM_BYTES);
@@ -71,6 +74,7 @@ module riscv_pc_soc #(
     wire        spi_ready;
     wire        ps2_ready;
 
+    assign debug_boot_status = debug_boot_status_r;
     assign uart_rdata = uart_div_sel ? uart_div_do : uart_dat_do;
 
     assign mem_ready = uart_ready || gpio_ready || timer_ready || spi_ready || ps2_ready || rom_ready || ram_ready || invalid_ready;
@@ -91,10 +95,18 @@ module riscv_pc_soc #(
             rom_ready <= 1'b0;
             ram_ready <= 1'b0;
             invalid_ready <= 1'b0;
+            debug_boot_status_r <= 32'h0000_0000;
         end else begin
             rom_ready <= mem_valid && !mem_ready && sel_rom;
             ram_ready <= mem_valid && !mem_ready && sel_ram;
             invalid_ready <= mem_valid && !mem_ready && sel_none;
+
+            if (mem_valid && !mem_ready && sel_ram && (mem_addr == BOOT_INFO_STATUS_ADDR)) begin
+                if (mem_wstrb[0]) debug_boot_status_r[7:0] <= mem_wdata[7:0];
+                if (mem_wstrb[1]) debug_boot_status_r[15:8] <= mem_wdata[15:8];
+                if (mem_wstrb[2]) debug_boot_status_r[23:16] <= mem_wdata[23:16];
+                if (mem_wstrb[3]) debug_boot_status_r[31:24] <= mem_wdata[31:24];
+            end
         end
     end
 
