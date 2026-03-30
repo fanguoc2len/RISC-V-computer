@@ -5,13 +5,14 @@
 Tinh den 2026-03-26, nhanh hien tai da co:
 
 - smoke simulation pass end-to-end tren `top_basys3_tb`
-- monitor shell qua UART voi cac lenh `h l b k i m t g`
+- monitor shell qua UART voi cac lenh `h l b k i m t r g`
 - bootloader SPI raw image co `header/checksum/jump`
 - `boot info block` va `STATUS=00000001` sau khi boot thanh cong
 - VGA color bars + status panel (`LED`, `TIME`, `PS2`, `STAT`)
 - duong PS/2 co xac nhan trong smoke sim
 - keyboard PS/2 da decode duoc mot nhom scan code Set 2 sang ASCII va co the kich mot phan lenh monitor
 - ky tu PS/2 decode duoc da di vao monitor input path va echo qua UART, khong chi dung cho command hotkey
+- lenh `r` da tu test mot vung SRAM scratch va tra `RAM=OK`
 - app mau trong SRAM chay duoc va phat marker `I`, `G`
 
 ## Phase 1 - Nen toi thieu chay duoc

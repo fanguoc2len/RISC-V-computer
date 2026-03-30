@@ -67,6 +67,7 @@ module top_basys3_tb;
     reg status_reply_seen;
     reg mem_dump_seen;
     reg time_reply_seen;
+    reg ram_reply_seen;
     reg app_info_seen;
     reg app_go_seen;
     reg go_command_sent;
@@ -370,6 +371,7 @@ module top_basys3_tb;
         status_reply_seen = 1'b0;
         mem_dump_seen = 1'b0;
         time_reply_seen = 1'b0;
+        ram_reply_seen = 1'b0;
         app_info_seen = 1'b0;
         app_go_seen = 1'b0;
         go_command_sent = 1'b0;
@@ -415,6 +417,9 @@ module top_basys3_tb;
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h74);
         wait_for_prompt(11, 250000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h72);
+        wait_for_prompt(12, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
@@ -478,6 +483,11 @@ module top_basys3_tb;
 
         if (!time_reply_seen) begin
             $display("FAIL: Did not observe timer reply after sending 't'.");
+            $finish;
+        end
+
+        if (!ram_reply_seen) begin
+            $display("FAIL: Did not observe SRAM self-test reply after sending 'r'.");
             $finish;
         end
 
@@ -705,6 +715,11 @@ module top_basys3_tb;
             if ({uart_shift5[31:0], uart_mon.recv_buf_data} == {8'h54, 8'h49, 8'h4D, 8'h45, 8'h3D}) begin
                 time_reply_seen <= 1'b1;
                 $display("INFO: UART text matched TIME= at time %0t.", $time);
+            end
+
+            if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h52, 8'h41, 8'h4D, 8'h3D, 8'h4F, 8'h4B}) begin
+                ram_reply_seen <= 1'b1;
+                $display("INFO: UART text matched RAM=OK at time %0t.", $time);
             end
 
             if (go_command_sent && uart_mon.recv_buf_data == 8'h49) begin

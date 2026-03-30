@@ -386,6 +386,8 @@ def build_bootrom() -> list[int]:
     boot_status_bad_entry = 0x000000E4
     boot_status_bad_checksum = 0x000000E5
     uart_div = 868
+    ramtest_min_base = sram_base + 0x200
+    ramtest_limit = sram_base + sram_bytes - 0x200
 
     p = Program()
 
@@ -417,7 +419,7 @@ def build_bootrom() -> list[int]:
         *u32le_bytes(0),
     ]
 
-    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 i=info m=mem t=time g=go\r\n> ")
+    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 i=info m=mem t=time r=ram g=go\r\n> ")
     p.j("boot_try")
 
     p.label("main_loop")
@@ -455,6 +457,8 @@ def build_bootrom() -> list[int]:
     p.beq("a1", "t0", "ps2_key_l")
     p.li("t0", 0x3A)
     p.beq("a1", "t0", "ps2_key_m")
+    p.li("t0", 0x2D)
+    p.beq("a1", "t0", "ps2_key_r")
     p.li("t0", 0x2C)
     p.beq("a1", "t0", "ps2_key_t")
     p.j("main_loop")
@@ -503,6 +507,10 @@ def build_bootrom() -> list[int]:
     p.li("a0", ord("m"))
     p.j("ps2_store_and_dispatch")
 
+    p.label("ps2_key_r")
+    p.li("a0", ord("r"))
+    p.j("ps2_store_and_dispatch")
+
     p.label("ps2_key_t")
     p.li("a0", ord("t"))
     p.j("ps2_store_and_dispatch")
@@ -534,6 +542,8 @@ def build_bootrom() -> list[int]:
     p.beq("a0", "t0", "cmd_mem")
     p.li("t0", ord("t"))
     p.beq("a0", "t0", "cmd_time_stub")
+    p.li("t0", ord("r"))
+    p.beq("a0", "t0", "cmd_ram_stub")
     p.li("t0", ord("g"))
     p.beq("a0", "t0", "cmd_go_stub")
 
@@ -543,11 +553,14 @@ def build_bootrom() -> list[int]:
     p.label("cmd_time_stub")
     p.j("cmd_time")
 
+    p.label("cmd_ram_stub")
+    p.j("cmd_ram")
+
     p.label("cmd_go_stub")
     p.j("cmd_go")
 
     p.label("cmd_help")
-    puts(p, "s0", "t0", "CMDS:h l b k i m t g\r\n> ")
+    puts(p, "s0", "t0", "CMDS:h l b k i m t r g\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_led")
@@ -768,6 +781,51 @@ def build_bootrom() -> list[int]:
     p.lw("t1", 0, "t3")
     put_hex_word(p, "t1", "time_lo")
     puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("cmd_ram")
+    p.li("t3", ramtest_min_base)
+    p.beq("s5", "zero", "ram_base_ready")
+    p.add("t4", "s6", "s7")
+    p.addi("t4", "t4", 31)
+    p.andi("t4", "t4", -32)
+    p.sltu("t5", "t3", "t4")
+    p.beq("t5", "zero", "ram_base_ready")
+    copy_reg(p, "t3", "t4")
+
+    p.label("ram_base_ready")
+    p.addi("t4", "t3", 16)
+    p.li("t5", ramtest_limit)
+    p.sltu("t6", "t5", "t4")
+    p.bne("t6", "zero", "ram_fail")
+
+    p.li("t0", 0x13579BDF)
+    p.sw("t0", 0, "t3")
+    p.li("t0", 0x2468ACE0)
+    p.sw("t0", 4, "t3")
+    p.li("t0", 0x0F0F55AA)
+    p.sw("t0", 8, "t3")
+    p.li("t0", 0xA5A5F00F)
+    p.sw("t0", 12, "t3")
+
+    p.lw("t1", 0, "t3")
+    p.li("t0", 0x13579BDF)
+    p.bne("t1", "t0", "ram_fail")
+    p.lw("t1", 4, "t3")
+    p.li("t0", 0x2468ACE0)
+    p.bne("t1", "t0", "ram_fail")
+    p.lw("t1", 8, "t3")
+    p.li("t0", 0x0F0F55AA)
+    p.bne("t1", "t0", "ram_fail")
+    p.lw("t1", 12, "t3")
+    p.li("t0", 0xA5A5F00F)
+    p.bne("t1", "t0", "ram_fail")
+
+    puts(p, "s0", "t0", "RAM=OK\r\n> ")
+    p.j("main_loop")
+
+    p.label("ram_fail")
+    puts(p, "s0", "t0", "RAM=ER\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_go")

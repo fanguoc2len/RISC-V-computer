@@ -8,6 +8,16 @@
 #define BOOT_STATUS_BAD_SIZE 0x000000E3u
 #define BOOT_STATUS_BAD_ENTRY 0x000000E4u
 #define BOOT_STATUS_BAD_CHECKSUM 0x000000E5u
+#define RAMTEST_MIN_BASE (SRAM_BASE + 0x00000200u)
+#define RAMTEST_LIMIT    (SRAM_BASE + SRAM_SIZE_BYTES - 0x00000200u)
+#define RAMTEST_WORDS    4u
+
+static const uint32_t ramtest_patterns[RAMTEST_WORDS] = {
+    0x13579BDFu,
+    0x2468ACE0u,
+    0x0F0F55AAu,
+    0xA5A5F00Fu,
+};
 
 static uint32_t boot_loaded;
 static uint32_t boot_entry_addr;
@@ -30,7 +40,7 @@ static uint32_t spi_read_u32_le(void)
 static void banner(void)
 {
     uart_puts("RV32 PC\n");
-    uart_puts("h=help l=led b=boot k=ps2 i=info m=mem t=time g=go\n> ");
+    uart_puts("h=help l=led b=boot k=ps2 i=info m=mem t=time r=ram g=go\n> ");
 }
 
 static void show_ps2_status(void)
@@ -55,7 +65,7 @@ static void show_ps2_status(void)
 
 static void show_help(void)
 {
-    uart_puts("CMDS:h l b k i m t g\n> ");
+    uart_puts("CMDS:h l b k i m t r g\n> ");
 }
 
 static void uart_put_hex32(uint32_t value)
@@ -79,6 +89,7 @@ static char decode_ps2_ascii(uint8_t scan_code)
     case 0x42u: return 'k';
     case 0x4Bu: return 'l';
     case 0x3Au: return 'm';
+    case 0x2Du: return 'r';
     case 0x2Cu: return 't';
     default:    return 0;
     }
@@ -150,6 +161,41 @@ static void show_time_snapshot(void)
     uart_puts("TIME=");
     uart_put_hex32(TIMER_COUNT_LO);
     uart_puts("\n> ");
+}
+
+static void run_ram_test(void)
+{
+    uint32_t test_base = RAMTEST_MIN_BASE;
+    volatile uint32_t *test_words;
+    unsigned int i;
+
+    if (boot_loaded) {
+        uint32_t image_end = boot_info[1] + boot_info[2];
+        uint32_t aligned_end = (image_end + 31u) & ~31u;
+
+        if (aligned_end > test_base) {
+            test_base = aligned_end;
+        }
+    }
+
+    if ((test_base + (RAMTEST_WORDS * sizeof(uint32_t))) > RAMTEST_LIMIT) {
+        uart_puts("RAM=ER\n> ");
+        return;
+    }
+
+    test_words = (volatile uint32_t *)(uintptr_t)test_base;
+    for (i = 0; i < RAMTEST_WORDS; ++i) {
+        test_words[i] = ramtest_patterns[i];
+    }
+
+    for (i = 0; i < RAMTEST_WORDS; ++i) {
+        if (test_words[i] != ramtest_patterns[i]) {
+            uart_puts("RAM=ER\n> ");
+            return;
+        }
+    }
+
+    uart_puts("RAM=OK\n> ");
 }
 
 static void clear_boot_info(void)
@@ -315,6 +361,9 @@ int main(void)
                 break;
             case 't':
                 show_time_snapshot();
+                break;
+            case 'r':
+                run_ram_test();
                 break;
             case 'g':
                 run_loaded_program();

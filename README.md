@@ -131,6 +131,7 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - shell tra loi lenh `i` bang thong tin boot hien tai (`BOOTLD`, `ENTRY`, `STATUS`)
 - shell tra loi lenh `m` bang memory dump ngan (`BI0`, `APP0`)
 - shell tra loi lenh `t` bang thong tin timer (`TIME=`)
+- shell tra loi lenh `r` bang self-test SRAM ngan (`RAM=OK`)
 - shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
 - keyboard PS/2 co the kich lai it nhat mot lenh monitor, vi du phim `H` tra lai chuoi `CMDS:`
 - phim PS/2 `A` duoc echo vao shell path va hien `a` roi `?` de chung minh keyboard input di chung duong xu ly voi UART
