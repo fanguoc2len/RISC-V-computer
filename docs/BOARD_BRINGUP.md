@@ -148,6 +148,6 @@ Day la duong di an toan nhat cho do an 6 thang, vi moi moc deu co cach test ro r
 Neu chua co board, dung phien ban mo phong tuong ung:
 
 1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, `STATUS=00000001`, `RAM=OK`, UART marker `G` tu SRAM app, va `HSYNC`
-2. them testbench cho monitor shell UART
+2. chay `scripts\run_vivado_monitor_sim.bat` hoac `scripts/run_vivado_monitor_sim_gui.tcl` de iterate nhanh phan monitor shell UART/SPI/PS2
 3. them testbench cho bootloader SPI/SD o muc protocol don gian
 4. chi can hardware that o giai doan cuoi de xac nhan pinout va timing thuc te

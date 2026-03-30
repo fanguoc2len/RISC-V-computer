@@ -120,7 +120,32 @@ Script nay se:
 - ghi log vao `build\vivado_smoke_sim.log`
 - dong project va thoat Vivado khi chay o che do batch
 
-Ban smoke sim hien tai tu check 4 dau hieu:
+## Chay monitor shell simulation nhanh tren Windows
+
+Neu ban muon iterate nhanh phan UART monitor / SPI boot / PS2 ma chua can full top-level smoke sim co VGA, dung bench nhe hon `monitor_shell_tb`.
+
+Co 2 cach:
+
+1. GUI:
+   - mo Vivado
+   - `Tools -> Run Tcl Script...`
+   - chon `scripts/run_vivado_monitor_sim_gui.tcl`
+
+2. Batch tu Windows CMD:
+
+```bat
+scripts\run_vivado_monitor_sim.bat
+```
+
+Script nay se:
+
+- tao project Vivado
+- set `monitor_shell_tb` cho `sim_1`
+- chay behavioral simulation den khi testbench `$finish`
+- ghi log vao `build\vivado_monitor_sim.log`
+- check chuoi `PASS: monitor shell simulation completed.`
+
+Ban full smoke sim hien tai tu check nhieu dau hieu:
 
 - UART banner co chu `RV32`
 - shell tra loi lenh `h` bang chuoi `CMDS:`
