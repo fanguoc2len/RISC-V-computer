@@ -32,8 +32,9 @@ Script nay se:
 - tao lai project Vivado
 - run `synth_1`
 - run `impl_1` den `write_bitstream`
+- uu tien strategy thien ve timing cho `synth_1` va `impl_1`
 - ghi report timing va utilization vao thu muc `build`
-- ghi them `build\build_status.txt` de tom tat `synth_status`, `impl_status`, `worst_setup_slack_ns`, `worst_hold_slack_ns`
+- ghi them `build\build_status.txt` de tom tat `synth_status`, `impl_status`, `synth_strategy`, `impl_strategy`, `worst_setup_slack_ns`, `worst_hold_slack_ns`
 
 File can kiem tra sau khi build:
 

@@ -30,6 +30,13 @@ module riscv_pc_soc #(
     localparam [31:0] SPI_BASE       = 32'h2000_3000;
     localparam [31:0] PS2_BASE       = 32'h2000_4000;
     localparam [31:0] BOOT_INFO_STATUS_ADDR = SRAM_BASE + 32'h0000_0014;
+    localparam [17:0] BOOT_ROM_SEL   = BOOT_ROM_BASE[31:14];
+    localparam [15:0] SRAM_SEL       = SRAM_BASE[31:16];
+    localparam [28:0] UART_SEL       = UART_BASE[31:3];
+    localparam [29:0] GPIO_SEL       = GPIO_BASE[31:2];
+    localparam [26:0] TIMER_SEL      = TIMER_BASE[31:5];
+    localparam [28:0] SPI_SEL        = SPI_BASE[31:3];
+    localparam [28:0] PS2_SEL        = PS2_BASE[31:3];
 
     wire        mem_valid;
     wire        mem_instr;
@@ -52,13 +59,14 @@ module riscv_pc_soc #(
     reg invalid_ready;
     reg [31:0] debug_boot_status_r;
 
-    wire sel_rom   = mem_valid && (mem_addr >= BOOT_ROM_BASE) && (mem_addr < BOOT_ROM_BASE + BOOT_ROM_BYTES);
-    wire sel_ram   = mem_valid && (mem_addr >= SRAM_BASE)     && (mem_addr < SRAM_BASE + SRAM_BYTES);
-    wire sel_uart  = mem_valid && (mem_addr >= UART_BASE)     && (mem_addr < UART_BASE + 32'h0000_0008);
-    wire sel_gpio  = mem_valid && (mem_addr >= GPIO_BASE)     && (mem_addr < GPIO_BASE + 32'h0000_0004);
-    wire sel_timer = mem_valid && (mem_addr >= TIMER_BASE)    && (mem_addr < TIMER_BASE + 32'h0000_0014);
-    wire sel_spi   = mem_valid && (mem_addr >= SPI_BASE)      && (mem_addr < SPI_BASE + 32'h0000_0008);
-    wire sel_ps2   = mem_valid && (mem_addr >= PS2_BASE)      && (mem_addr < PS2_BASE + 32'h0000_0008);
+    // Keep address decode shallow: match fixed address bits instead of wide range compares.
+    wire sel_rom   = mem_valid && (mem_addr[31:14] == BOOT_ROM_SEL);
+    wire sel_ram   = mem_valid && (mem_addr[31:16] == SRAM_SEL);
+    wire sel_uart  = mem_valid && (mem_addr[31:3]  == UART_SEL);
+    wire sel_gpio  = mem_valid && (mem_addr[31:2]  == GPIO_SEL);
+    wire sel_timer = mem_valid && (mem_addr[31:5]  == TIMER_SEL) && (mem_addr[4:2] <= 3'd4);
+    wire sel_spi   = mem_valid && (mem_addr[31:3]  == SPI_SEL);
+    wire sel_ps2   = mem_valid && (mem_addr[31:3]  == PS2_SEL);
     wire sel_none  = mem_valid && !(sel_rom || sel_ram || sel_uart || sel_gpio || sel_timer || sel_spi || sel_ps2);
 
     wire [31:0] uart_div_do;
