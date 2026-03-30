@@ -127,11 +127,13 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - shell tra loi lenh `l` bang chuoi `LED=0`
 - shell tra loi lenh `b` bang chuoi `BOOT=OK`
 - shell tra loi lenh `k` bang chuoi `PS2=OK RAW=1C ASCII=a`
+- phan keyboard PS/2 khong chi kich command; ky tu decode duoc nhu `a` cung di vao shell, echo qua UART, va neu chua co command thi tra `?`
 - shell tra loi lenh `i` bang thong tin boot hien tai (`BOOTLD`, `ENTRY`, `STATUS`)
 - shell tra loi lenh `m` bang memory dump ngan (`BI0`, `APP0`)
 - shell tra loi lenh `t` bang thong tin timer (`TIME=`)
 - shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
 - keyboard PS/2 co the kich lai it nhat mot lenh monitor, vi du phim `H` tra lai chuoi `CMDS:`
+- phim PS/2 `A` duoc echo vao shell path va hien `a` roi `?` de chung minh keyboard input di chung duong xu ly voi UART
 - reset xong monitor tu thu boot image mot lan truoc khi cho lenh tay
 - `LED0` thuc su toggle sau lenh UART
 - `SPI SCLK` co hoat dong trong luc test `b`

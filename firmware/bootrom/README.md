@@ -23,6 +23,7 @@ Hien tai file `bootrom.mem` o root repo la **monitor image** de Vivado synthesiz
 - nhan lenh `t` de doc timer counter qua MMIO
 - nhan lenh `g` de jump vao app mau da load trong SRAM
 - co the dung mot nhom phim PS/2 (`h l b k i m t g`) de kich lai truc tiep cac lenh monitor qua keyboard
+- ky tu PS/2 decode duoc nhu `a` cung di vao shell input path, duoc echo ra UART, va neu chua map thanh lenh thi monitor tra `?`
 - khi boot thanh cong, Boot ROM ghi `boot info block` vao dau SRAM de app mau co the doc lai thong tin image
 
 Ban co 2 duong de tiep tuc:

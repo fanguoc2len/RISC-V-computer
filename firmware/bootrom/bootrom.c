@@ -122,19 +122,7 @@ static int poll_ps2_command(void)
     }
 
     remember_ps2_key(scan_code, ascii);
-    switch (ascii) {
-    case 'b':
-    case 'g':
-    case 'h':
-    case 'i':
-    case 'k':
-    case 'l':
-    case 'm':
-    case 't':
-        return (int)ascii;
-    default:
-        return -1;
-    }
+    return (int)ascii;
 }
 
 static void show_boot_info(void)

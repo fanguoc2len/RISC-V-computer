@@ -91,6 +91,7 @@ Ban nen thay:
 - gui `t` qua UART thi monitor in `TIME=`
 - gui `g` qua UART thi app trong SRAM chay va doi `LED[3:0]` thanh `0xA`
 - gui phim `H` tu PS/2 thi monitor co the tra lai help `CMDS:`
+- gui phim `A` tu PS/2 thi monitor echo `a`, sau do tra `?` neu ky tu do chua map thanh lenh
 
 Thong so UART:
 

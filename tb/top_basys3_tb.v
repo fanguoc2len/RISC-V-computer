@@ -60,6 +60,7 @@ module top_basys3_tb;
     reg help_reply_seen;
     reg led_zero_msg_seen;
     reg boot_ok_seen;
+    reg ps2_echo_seen;
     reg ps2_ok_seen;
     reg ps2_ascii_seen;
     reg info_reply_seen;
@@ -362,6 +363,7 @@ module top_basys3_tb;
         help_reply_seen = 1'b0;
         led_zero_msg_seen = 1'b0;
         boot_ok_seen = 1'b0;
+        ps2_echo_seen = 1'b0;
         ps2_ok_seen = 1'b0;
         ps2_ascii_seen = 1'b0;
         info_reply_seen = 1'b0;
@@ -397,21 +399,22 @@ module top_basys3_tb;
         uart_send_byte(8'h62);
         wait_for_prompt(5, 600000);
         ps2_send_byte(8'h1C);
-        repeat (UART_BIT_CLKS * 2) @(posedge clk);
-        uart_send_byte(8'h6B);
         wait_for_prompt(6, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
-        ps2_send_byte(8'h33);
+        uart_send_byte(8'h6B);
         wait_for_prompt(7, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        ps2_send_byte(8'h33);
+        wait_for_prompt(8, 250000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h69);
-        wait_for_prompt(8, 1000000);
+        wait_for_prompt(9, 1000000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6D);
-        wait_for_prompt(9, 400000);
+        wait_for_prompt(10, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h74);
-        wait_for_prompt(10, 250000);
+        wait_for_prompt(11, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
@@ -440,6 +443,11 @@ module top_basys3_tb;
 
         if (!ps2_ok_seen) begin
             $display("FAIL: Did not observe PS2=OK reply after sending 'k'.");
+            $finish;
+        end
+
+        if (!ps2_echo_seen) begin
+            $display("FAIL: Did not observe PS/2 ASCII echo path for unsupported key 'a'.");
             $finish;
         end
 
@@ -667,6 +675,11 @@ module top_basys3_tb;
             if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h50, 8'h53, 8'h32, 8'h3D, 8'h4F, 8'h4B}) begin
                 ps2_ok_seen <= 1'b1;
                 $display("INFO: UART text matched PS2=OK at time %0t.", $time);
+            end
+
+            if ({uart_shift7[47:0], uart_mon.recv_buf_data} == {8'h61, 8'h0D, 8'h0A, 8'h3F, 8'h0D, 8'h0A, 8'h3E}) begin
+                ps2_echo_seen <= 1'b1;
+                $display("INFO: UART text matched keyboard echo a->? at time %0t.", $time);
             end
 
             if ({uart_shift7[47:0], uart_mon.recv_buf_data} == {8'h41, 8'h53, 8'h43, 8'h49, 8'h49, 8'h3D, 8'h61}) begin
