@@ -84,12 +84,13 @@ Ban nen thay:
 - man hinh VGA co hinh mau test pattern va status panel
 - gui `l` qua UART thi `LED0` doi trang thai
 - gui `b` qua UART thi monitor bao `BOOT=OK`
-- gui `k` qua UART thi monitor bao `PS2=OK`
+- gui `k` qua UART thi monitor bao `PS2=OK RAW=.. ASCII=..`
 - gui `i` qua UART thi monitor bao `BOOTLD=1 ENTRY=10000020 STATUS=00000001`
 - dong `STAT` tren VGA panel hien `00000001` sau khi autoboot thanh cong
 - gui `m` qua UART thi monitor in `BI0=` va `APP0=`
 - gui `t` qua UART thi monitor in `TIME=`
 - gui `g` qua UART thi app trong SRAM chay va doi `LED[3:0]` thanh `0xA`
+- gui phim `H` tu PS/2 thi monitor co the tra lai help `CMDS:`
 
 Thong so UART:
 

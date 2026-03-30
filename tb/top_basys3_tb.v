@@ -43,6 +43,7 @@ module top_basys3_tb;
     integer spi_sclk_posedge_count;
     integer spi_byte_index;
     integer boot_ok_count;
+    integer help_reply_count;
     reg last_uart_tx;
     reg last_hsync;
     reg uart_mon_read;
@@ -60,6 +61,7 @@ module top_basys3_tb;
     reg led_zero_msg_seen;
     reg boot_ok_seen;
     reg ps2_ok_seen;
+    reg ps2_ascii_seen;
     reg info_reply_seen;
     reg status_reply_seen;
     reg mem_dump_seen;
@@ -342,6 +344,7 @@ module top_basys3_tb;
         prompt_count = 0;
         spi_sclk_posedge_count = 0;
         boot_ok_count = 0;
+        help_reply_count = 0;
         last_uart_tx = 1'b1;
         last_hsync = 1'b1;
         uart_mon_read = 1'b0;
@@ -360,6 +363,7 @@ module top_basys3_tb;
         led_zero_msg_seen = 1'b0;
         boot_ok_seen = 1'b0;
         ps2_ok_seen = 1'b0;
+        ps2_ascii_seen = 1'b0;
         info_reply_seen = 1'b0;
         status_reply_seen = 1'b0;
         mem_dump_seen = 1'b0;
@@ -397,14 +401,17 @@ module top_basys3_tb;
         uart_send_byte(8'h6B);
         wait_for_prompt(6, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        ps2_send_byte(8'h33);
+        wait_for_prompt(7, 250000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h69);
-        wait_for_prompt(7, 1000000);
+        wait_for_prompt(8, 1000000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6D);
-        wait_for_prompt(8, 400000);
+        wait_for_prompt(9, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h74);
-        wait_for_prompt(9, 250000);
+        wait_for_prompt(10, 250000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
@@ -433,6 +440,16 @@ module top_basys3_tb;
 
         if (!ps2_ok_seen) begin
             $display("FAIL: Did not observe PS2=OK reply after sending 'k'.");
+            $finish;
+        end
+
+        if (!ps2_ascii_seen) begin
+            $display("FAIL: Did not observe PS/2 ASCII decode after sending 'k'.");
+            $finish;
+        end
+
+        if (help_reply_count < 2) begin
+            $display("FAIL: Did not observe keyboard-driven help reply. Count=%0d.", help_reply_count);
             $finish;
         end
 
@@ -634,6 +651,7 @@ module top_basys3_tb;
 
             if ({uart_shift5[31:0], uart_mon.recv_buf_data} == {8'h43, 8'h4D, 8'h44, 8'h53, 8'h3A}) begin
                 help_reply_seen <= 1'b1;
+                help_reply_count <= help_reply_count + 1;
             end
 
             if ({uart_shift5[31:0], uart_mon.recv_buf_data} == {8'h4C, 8'h45, 8'h44, 8'h3D, 8'h30}) begin
@@ -649,6 +667,11 @@ module top_basys3_tb;
             if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h50, 8'h53, 8'h32, 8'h3D, 8'h4F, 8'h4B}) begin
                 ps2_ok_seen <= 1'b1;
                 $display("INFO: UART text matched PS2=OK at time %0t.", $time);
+            end
+
+            if ({uart_shift7[47:0], uart_mon.recv_buf_data} == {8'h41, 8'h53, 8'h43, 8'h49, 8'h49, 8'h3D, 8'h61}) begin
+                ps2_ascii_seen <= 1'b1;
+                $display("INFO: UART text matched ASCII=a at time %0t.", $time);
             end
 
             if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h45, 8'h4E, 8'h54, 8'h52, 8'h59, 8'h3D}) begin

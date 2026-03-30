@@ -10,6 +10,7 @@ Tinh den 2026-03-26, nhanh hien tai da co:
 - `boot info block` va `STATUS=00000001` sau khi boot thanh cong
 - VGA color bars + status panel (`LED`, `TIME`, `PS2`, `STAT`)
 - duong PS/2 co xac nhan trong smoke sim
+- keyboard PS/2 da decode duoc mot nhom scan code Set 2 sang ASCII va co the kich mot phan lenh monitor
 - app mau trong SRAM chay duoc va phat marker `I`, `G`
 
 ## Phase 1 - Nen toi thieu chay duoc

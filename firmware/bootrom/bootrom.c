@@ -11,6 +11,8 @@
 
 static uint32_t boot_loaded;
 static uint32_t boot_entry_addr;
+static uint32_t ps2_break_prefix;
+static uint32_t ps2_extended_prefix;
 
 static volatile uint32_t *const boot_info = (volatile uint32_t *)(uintptr_t)SRAM_BASE;
 
@@ -33,11 +35,22 @@ static void banner(void)
 
 static void show_ps2_status(void)
 {
-    if ((PS2_STATUS == 0x1u) && ((PS2_DATA & 0xFFu) == 0x1Cu)) {
-        uart_puts("PS2=OK\n> ");
-    } else {
+    uint32_t raw = boot_info[6] & 0xFFu;
+    uint32_t ascii = boot_info[7] & 0xFFu;
+    uint32_t high_nibble = (raw >> 4) & 0xFu;
+    uint32_t low_nibble = raw & 0xFu;
+
+    if (raw == 0u) {
         uart_puts("PS2=ER\n> ");
+        return;
     }
+
+    uart_puts("PS2=OK RAW=");
+    uart_putc((char)(high_nibble < 10u ? ('0' + high_nibble) : ('A' + (high_nibble - 10u))));
+    uart_putc((char)(low_nibble < 10u ? ('0' + low_nibble) : ('A' + (low_nibble - 10u))));
+    uart_puts(" ASCII=");
+    uart_putc(ascii != 0u ? (char)ascii : '?');
+    uart_puts("\n> ");
 }
 
 static void show_help(void)
@@ -52,6 +65,75 @@ static void uart_put_hex32(uint32_t value)
     for (shift = 28; shift >= 0; shift -= 4) {
         uint32_t nibble = (value >> (uint32_t)shift) & 0xFu;
         uart_putc((char)(nibble < 10u ? ('0' + nibble) : ('A' + (nibble - 10u))));
+    }
+}
+
+static char decode_ps2_ascii(uint8_t scan_code)
+{
+    switch (scan_code) {
+    case 0x1Cu: return 'a';
+    case 0x32u: return 'b';
+    case 0x34u: return 'g';
+    case 0x33u: return 'h';
+    case 0x43u: return 'i';
+    case 0x42u: return 'k';
+    case 0x4Bu: return 'l';
+    case 0x3Au: return 'm';
+    case 0x2Cu: return 't';
+    default:    return 0;
+    }
+}
+
+static void remember_ps2_key(uint8_t raw, char ascii)
+{
+    boot_info[6] = (uint32_t)raw;
+    boot_info[7] = (uint32_t)(uint8_t)ascii;
+}
+
+static int poll_ps2_command(void)
+{
+    uint8_t scan_code;
+    char ascii;
+
+    if ((PS2_STATUS & 0x1u) == 0u) {
+        return -1;
+    }
+
+    scan_code = (uint8_t)(PS2_DATA & 0xFFu);
+    if (scan_code == 0xF0u) {
+        ps2_break_prefix = 1u;
+        return -1;
+    }
+
+    if (scan_code == 0xE0u) {
+        ps2_extended_prefix = 1u;
+        return -1;
+    }
+
+    if (ps2_break_prefix || ps2_extended_prefix) {
+        ps2_break_prefix = 0u;
+        ps2_extended_prefix = 0u;
+        return -1;
+    }
+
+    ascii = decode_ps2_ascii(scan_code);
+    if (ascii == 0) {
+        return -1;
+    }
+
+    remember_ps2_key(scan_code, ascii);
+    switch (ascii) {
+    case 'b':
+    case 'g':
+    case 'h':
+    case 'i':
+    case 'k':
+    case 'l':
+    case 'm':
+    case 't':
+        return (int)ascii;
+    default:
+        return -1;
     }
 }
 
@@ -217,6 +299,10 @@ int main(void)
 
     for (;;) {
         int ch = uart_try_getc();
+        if (ch < 0) {
+            ch = poll_ps2_command();
+        }
+
         if (ch >= 0) {
             uart_putc((char)ch);
             uart_putc('\r');

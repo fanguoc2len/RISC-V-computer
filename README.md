@@ -62,7 +62,8 @@ Phien ban hien tai cung cap:
 - boot ROM monitor image co san de test synth/sim ngay
 - source firmware boot ROM de phat trien tiep
 - VGA status panel de bring-up man hinh, van giu nen color bars de debug nhanh
-- PS/2 va SPI o muc khoi tao/phat trien tiep
+- PS/2 co decode mot phan scan code Set 2 sang ASCII va co the kich mot vai lenh monitor
+- SPI o muc raw-image boot da chay duoc
 - testbench smoke test cho Vivado simulation
 - boot monitor co auto-boot thu image SPI ngay sau reset, sau do fallback ve UART shell
 
@@ -125,11 +126,12 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - shell tra loi lenh `h` bang chuoi `CMDS:`
 - shell tra loi lenh `l` bang chuoi `LED=0`
 - shell tra loi lenh `b` bang chuoi `BOOT=OK`
-- shell tra loi lenh `k` bang chuoi `PS2=OK`
+- shell tra loi lenh `k` bang chuoi `PS2=OK RAW=1C ASCII=a`
 - shell tra loi lenh `i` bang thong tin boot hien tai (`BOOTLD`, `ENTRY`, `STATUS`)
 - shell tra loi lenh `m` bang memory dump ngan (`BI0`, `APP0`)
 - shell tra loi lenh `t` bang thong tin timer (`TIME=`)
 - shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
+- keyboard PS/2 co the kich lai it nhat mot lenh monitor, vi du phim `H` tra lai chuoi `CMDS:`
 - reset xong monitor tu thu boot image mot lan truoc khi cho lenh tay
 - `LED0` thuc su toggle sau lenh UART
 - `SPI SCLK` co hoat dong trong luc test `b`
@@ -137,6 +139,7 @@ Ban smoke sim hien tai tu check 4 dau hieu:
 - lenh `b` tu tinh checksum payload trong luc copy va chi `BOOT=OK` khi checksum hop le
 - smoke sim hien tai co chu y dung `load_addr = entry_addr = 0x1000_0020` de chung minh Boot ROM khong con hardcode `SRAM_BASE`
 - Boot ROM ghi `boot info block` vao `0x1000_0000 .. 0x1000_001F` gom `magic/load_addr/size/entry/checksum/status`
+- `boot info block[6:7]` duoc dung lam snapshot `last_ps2_raw/last_ps2_ascii` de debug keyboard
 - lenh `b` copy duoc payload vao SRAM theo thong tin trong header va lenh `g` jump duoc vao SRAM app mau
 - app SRAM mau tu doc `boot info block`, xac nhan `magic + entry_addr`, roi moi phat marker `I` va `G` qua UART
 - VGA status panel hien truc tiep `LED`, `TIME`, `PS2`, `STAT`
