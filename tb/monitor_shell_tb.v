@@ -8,6 +8,7 @@ module monitor_shell_tb;
     localparam integer BOOT_HEADER_BYTES = 32;
     localparam integer BOOT_PAYLOAD_BYTES = 88;
     localparam [31:0] BOOT_INFO_MAGIC = 32'h49425652;
+    localparam [31:0] NPU_DEMO_EXPECT = 32'h00000032;
 
     reg clk;
     reg resetn;
@@ -58,6 +59,8 @@ module monitor_shell_tb;
     reg mem_dump_seen;
     reg time_reply_seen;
     reg ram_reply_seen;
+    reg npu_reply_seen;
+    reg pcpi_reply_seen;
     reg app_info_seen;
     reg app_go_seen;
     reg go_command_sent;
@@ -360,6 +363,8 @@ module monitor_shell_tb;
         mem_dump_seen = 1'b0;
         time_reply_seen = 1'b0;
         ram_reply_seen = 1'b0;
+        npu_reply_seen = 1'b0;
+        pcpi_reply_seen = 1'b0;
         app_info_seen = 1'b0;
         app_go_seen = 1'b0;
         go_command_sent = 1'b0;
@@ -372,10 +377,10 @@ module monitor_shell_tb;
         wait_for_prompt(2, 1500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h68);
-        wait_for_prompt(3, 250000);
+        wait_for_prompt(3, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6C);
-        wait_for_prompt(4, 250000);
+        wait_for_prompt(4, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         spi_byte_index = 0;
         spi_xfer_active = 1'b0;
@@ -384,13 +389,13 @@ module monitor_shell_tb;
         uart_send_byte(8'h62);
         wait_for_prompt(5, 600000);
         ps2_send_byte(8'h1C);
-        wait_for_prompt(6, 250000);
+        wait_for_prompt(6, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6B);
-        wait_for_prompt(7, 250000);
+        wait_for_prompt(7, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         ps2_send_byte(8'h33);
-        wait_for_prompt(8, 250000);
+        wait_for_prompt(8, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h69);
         wait_for_prompt(9, 1000000);
@@ -399,10 +404,16 @@ module monitor_shell_tb;
         wait_for_prompt(10, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h74);
-        wait_for_prompt(11, 250000);
+        wait_for_prompt(11, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h72);
-        wait_for_prompt(12, 250000);
+        wait_for_prompt(12, 400000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h6E);
+        wait_for_prompt(13, 400000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h70);
+        wait_for_prompt(14, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
@@ -474,6 +485,22 @@ module monitor_shell_tb;
 
         if (!ram_reply_seen) begin
             $display("FAIL: Did not observe SRAM self-test reply after sending 'r'.");
+            $finish;
+        end
+
+        if (!npu_reply_seen) begin
+            $display("FAIL: Did not observe MMIO NPU reply after sending 'n'.");
+            $finish;
+        end
+
+        if (!pcpi_reply_seen) begin
+            $display("FAIL: Did not observe PCPI NPU reply after sending 'p'.");
+            $finish;
+        end
+
+        if (dut.npu_i.result_reg !== NPU_DEMO_EXPECT) begin
+            $display("FAIL: MMIO NPU result register is 0x%08x instead of 0x%08x.",
+                     dut.npu_i.result_reg, NPU_DEMO_EXPECT);
             $finish;
         end
 
@@ -663,6 +690,16 @@ module monitor_shell_tb;
             if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h52, 8'h41, 8'h4D, 8'h3D, 8'h4F, 8'h4B}) begin
                 ram_reply_seen <= 1'b1;
                 $display("INFO: UART text matched RAM=OK at time %0t.", $time);
+            end
+
+            if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h4E, 8'h50, 8'h55, 8'h3D, 8'h4F, 8'h4B}) begin
+                npu_reply_seen <= 1'b1;
+                $display("INFO: UART text matched NPU=OK at time %0t.", $time);
+            end
+
+            if ({uart_shift7[47:0], uart_mon.recv_buf_data} == {8'h50, 8'h43, 8'h50, 8'h49, 8'h3D, 8'h4F, 8'h4B}) begin
+                pcpi_reply_seen <= 1'b1;
+                $display("INFO: UART text matched PCPI=OK at time %0t.", $time);
             end
 
             if (go_command_sent && uart_mon.recv_buf_data == 8'h49) begin

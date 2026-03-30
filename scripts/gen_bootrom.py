@@ -152,6 +152,19 @@ class Program:
     def sltu(self, rd: str, rs1: str, rs2: str) -> None:
         self.emit((0x00 << 25) | (reg(rs2) << 20) | (reg(rs1) << 15) | (0x3 << 12) | (reg(rd) << 7) | 0x33)
 
+    def r_type(self, rd: str, rs1: str, rs2: str, funct3: int, funct7: int, opcode: int) -> None:
+        self.emit(
+            ((funct7 & 0x7F) << 25)
+            | (reg(rs2) << 20)
+            | (reg(rs1) << 15)
+            | ((funct3 & 0x7) << 12)
+            | (reg(rd) << 7)
+            | (opcode & 0x7F)
+        )
+
+    def pcpi_dot4(self, rd: str, rs1: str, rs2: str) -> None:
+        self.r_type(rd, rs1, rs2, funct3=0x0, funct7=0x2A, opcode=0x0B)
+
     def li(self, rd: str, imm: int) -> None:
         imm = as_signed32(imm)
         if signed_range(imm, 12):
@@ -374,6 +387,7 @@ def build_bootrom() -> list[int]:
     timer_base = 0x20002000
     spi_base = 0x20003000
     ps2_base = 0x20004000
+    npu_base = 0x20005000
     sram_base = 0x10000000
     sram_bytes = 0x00010000
     sample_load_addr = sram_base + 0x20
@@ -388,6 +402,9 @@ def build_bootrom() -> list[int]:
     uart_div = 868
     ramtest_min_base = sram_base + 0x200
     ramtest_limit = sram_base + sram_bytes - 0x200
+    npu_demo_vec_a = 0xFC03FE01
+    npu_demo_vec_b = 0xFC05FA07
+    npu_demo_expected = 0x00000032
 
     p = Program()
 
@@ -419,7 +436,7 @@ def build_bootrom() -> list[int]:
         *u32le_bytes(0),
     ]
 
-    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 i=info m=mem t=time r=ram g=go\r\n> ")
+    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi g=go\r\n> ")
     p.j("boot_try")
 
     p.label("main_loop")
@@ -544,6 +561,10 @@ def build_bootrom() -> list[int]:
     p.beq("a0", "t0", "cmd_time_stub")
     p.li("t0", ord("r"))
     p.beq("a0", "t0", "cmd_ram_stub")
+    p.li("t0", ord("n"))
+    p.beq("a0", "t0", "cmd_npu_stub")
+    p.li("t0", ord("p"))
+    p.beq("a0", "t0", "cmd_pcpi_stub")
     p.li("t0", ord("g"))
     p.beq("a0", "t0", "cmd_go_stub")
 
@@ -556,11 +577,17 @@ def build_bootrom() -> list[int]:
     p.label("cmd_ram_stub")
     p.j("cmd_ram")
 
+    p.label("cmd_npu_stub")
+    p.j("cmd_npu")
+
+    p.label("cmd_pcpi_stub")
+    p.j("cmd_pcpi")
+
     p.label("cmd_go_stub")
     p.j("cmd_go")
 
     p.label("cmd_help")
-    puts(p, "s0", "t0", "CMDS:h l b k i m t r g\r\n> ")
+    puts(p, "s0", "t0", "CMDS:h l b k i m t r n p g\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_led")
@@ -826,6 +853,50 @@ def build_bootrom() -> list[int]:
 
     p.label("ram_fail")
     puts(p, "s0", "t0", "RAM=ER\r\n> ")
+    p.j("main_loop")
+
+    p.label("cmd_npu")
+    p.li("t3", npu_base)
+    p.li("t2", 0)
+    p.li("t1", npu_demo_vec_a)
+    p.sw("t1", 4, "t3")
+    p.li("t1", npu_demo_vec_b)
+    p.sw("t1", 8, "t3")
+    p.li("t1", 1)
+    p.sw("t1", 0, "t3")
+    p.lw("t4", 0, "t3")
+    p.andi("t4", "t4", 0x2)
+    p.li("t1", 0x2)
+    p.bne("t4", "t1", "npu_fail")
+    p.lw("t2", 12, "t3")
+    p.li("t1", npu_demo_expected)
+    p.bne("t2", "t1", "npu_fail")
+    puts(p, "s0", "t0", "NPU=OK RES=")
+    put_hex_word(p, "t2", "npu_res_ok")
+    puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("npu_fail")
+    puts(p, "s0", "t0", "NPU=ER RES=")
+    put_hex_word(p, "t2", "npu_res_fail")
+    puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("cmd_pcpi")
+    p.li("t1", npu_demo_vec_a)
+    p.li("t2", npu_demo_vec_b)
+    p.pcpi_dot4("t3", "t1", "t2")
+    p.li("t0", npu_demo_expected)
+    p.bne("t3", "t0", "pcpi_fail")
+    puts(p, "s0", "t0", "PCPI=OK RES=")
+    put_hex_word(p, "t3", "pcpi_res_ok")
+    puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("pcpi_fail")
+    puts(p, "s0", "t0", "PCPI=ER RES=")
+    put_hex_word(p, "t3", "pcpi_res_fail")
+    puts(p, "s0", "t0", "\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_go")

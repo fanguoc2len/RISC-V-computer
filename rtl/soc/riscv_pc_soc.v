@@ -29,6 +29,7 @@ module riscv_pc_soc #(
     localparam [31:0] TIMER_BASE     = 32'h2000_2000;
     localparam [31:0] SPI_BASE       = 32'h2000_3000;
     localparam [31:0] PS2_BASE       = 32'h2000_4000;
+    localparam [31:0] NPU_BASE       = 32'h2000_5000;
     localparam [31:0] BOOT_INFO_STATUS_ADDR = SRAM_BASE + 32'h0000_0014;
     localparam [17:0] BOOT_ROM_SEL   = BOOT_ROM_BASE[31:14];
     localparam [15:0] SRAM_SEL       = SRAM_BASE[31:16];
@@ -37,6 +38,7 @@ module riscv_pc_soc #(
     localparam [26:0] TIMER_SEL      = TIMER_BASE[31:5];
     localparam [28:0] SPI_SEL        = SPI_BASE[31:3];
     localparam [28:0] PS2_SEL        = PS2_BASE[31:3];
+    localparam [27:0] NPU_SEL        = NPU_BASE[31:4];
 
     wire        mem_valid;
     wire        mem_instr;
@@ -53,6 +55,7 @@ module riscv_pc_soc #(
     wire [31:0] timer_rdata;
     wire [31:0] spi_rdata;
     wire [31:0] ps2_rdata;
+    wire [31:0] npu_rdata;
 
     reg rom_ready;
     reg ram_ready;
@@ -67,7 +70,8 @@ module riscv_pc_soc #(
     wire sel_timer = mem_valid && (mem_addr[31:5]  == TIMER_SEL) && (mem_addr[4:2] <= 3'd4);
     wire sel_spi   = mem_valid && (mem_addr[31:3]  == SPI_SEL);
     wire sel_ps2   = mem_valid && (mem_addr[31:3]  == PS2_SEL);
-    wire sel_none  = mem_valid && !(sel_rom || sel_ram || sel_uart || sel_gpio || sel_timer || sel_spi || sel_ps2);
+    wire sel_npu   = mem_valid && (mem_addr[31:4]  == NPU_SEL);
+    wire sel_none  = mem_valid && !(sel_rom || sel_ram || sel_uart || sel_gpio || sel_timer || sel_spi || sel_ps2 || sel_npu);
 
     wire [31:0] uart_div_do;
     wire [31:0] uart_dat_do;
@@ -81,11 +85,20 @@ module riscv_pc_soc #(
     wire        timer_irq;
     wire        spi_ready;
     wire        ps2_ready;
+    wire        npu_ready;
+    wire        pcpi_valid;
+    wire [31:0] pcpi_insn;
+    wire [31:0] pcpi_rs1;
+    wire [31:0] pcpi_rs2;
+    wire        pcpi_wr;
+    wire [31:0] pcpi_rd;
+    wire        pcpi_wait;
+    wire        pcpi_ready;
 
     assign debug_boot_status = debug_boot_status_r;
     assign uart_rdata = uart_div_sel ? uart_div_do : uart_dat_do;
 
-    assign mem_ready = uart_ready || gpio_ready || timer_ready || spi_ready || ps2_ready || rom_ready || ram_ready || invalid_ready;
+    assign mem_ready = uart_ready || gpio_ready || timer_ready || spi_ready || ps2_ready || npu_ready || rom_ready || ram_ready || invalid_ready;
 
     assign mem_rdata =
         uart_ready   ? uart_rdata   :
@@ -93,6 +106,7 @@ module riscv_pc_soc #(
         timer_ready  ? timer_rdata  :
         spi_ready    ? spi_rdata    :
         ps2_ready    ? ps2_rdata    :
+        npu_ready    ? npu_rdata    :
         rom_ready    ? rom_rdata    :
         ram_ready    ? ram_rdata    :
         invalid_ready ? 32'hDEAD_BEEF :
@@ -127,6 +141,7 @@ module riscv_pc_soc #(
         .BARREL_SHIFTER   (1),
         .COMPRESSED_ISA   (1),
         .ENABLE_COUNTERS  (1),
+        .ENABLE_PCPI      (1),
         .ENABLE_IRQ       (0)
     ) cpu_i (
         .clk        (clk),
@@ -138,6 +153,14 @@ module riscv_pc_soc #(
         .mem_wdata  (mem_wdata),
         .mem_wstrb  (mem_wstrb),
         .mem_rdata  (mem_rdata),
+        .pcpi_valid (pcpi_valid),
+        .pcpi_insn  (pcpi_insn),
+        .pcpi_rs1   (pcpi_rs1),
+        .pcpi_rs2   (pcpi_rs2),
+        .pcpi_wr    (pcpi_wr),
+        .pcpi_rd    (pcpi_rd),
+        .pcpi_wait  (pcpi_wait),
+        .pcpi_ready (pcpi_ready),
         .irq        (32'h0000_0000)
     );
 
@@ -229,5 +252,27 @@ module riscv_pc_soc #(
         .ps2_data       (ps2_data),
         .debug_rx_data  (debug_ps2_data),
         .debug_rx_valid (debug_ps2_valid)
+    );
+
+    npu_mmio npu_i (
+        .clk   (clk),
+        .resetn(resetn),
+        .valid (sel_npu && !mem_ready),
+        .addr  (mem_addr - NPU_BASE),
+        .wdata (mem_wdata),
+        .wstrb (mem_wstrb),
+        .ready (npu_ready),
+        .rdata (npu_rdata)
+    );
+
+    pcpi_npu pcpi_npu_i (
+        .pcpi_valid (pcpi_valid),
+        .pcpi_insn  (pcpi_insn),
+        .pcpi_rs1   (pcpi_rs1),
+        .pcpi_rs2   (pcpi_rs2),
+        .pcpi_wr    (pcpi_wr),
+        .pcpi_rd    (pcpi_rd),
+        .pcpi_wait  (pcpi_wait),
+        .pcpi_ready (pcpi_ready)
     );
 endmodule

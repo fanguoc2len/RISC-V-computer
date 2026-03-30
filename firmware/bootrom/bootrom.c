@@ -11,6 +11,9 @@
 #define RAMTEST_MIN_BASE (SRAM_BASE + 0x00000200u)
 #define RAMTEST_LIMIT    (SRAM_BASE + SRAM_SIZE_BYTES - 0x00000200u)
 #define RAMTEST_WORDS    4u
+#define NPU_DEMO_VEC_A   0xFC03FE01u
+#define NPU_DEMO_VEC_B   0xFC05FA07u
+#define NPU_DEMO_EXPECT  0x00000032u
 
 static const uint32_t ramtest_patterns[RAMTEST_WORDS] = {
     0x13579BDFu,
@@ -40,7 +43,7 @@ static uint32_t spi_read_u32_le(void)
 static void banner(void)
 {
     uart_puts("RV32 PC\n");
-    uart_puts("h=help l=led b=boot k=ps2 i=info m=mem t=time r=ram g=go\n> ");
+    uart_puts("h=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi g=go\n> ");
 }
 
 static void show_ps2_status(void)
@@ -65,7 +68,7 @@ static void show_ps2_status(void)
 
 static void show_help(void)
 {
-    uart_puts("CMDS:h l b k i m t r g\n> ");
+    uart_puts("CMDS:h l b k i m t r n p g\n> ");
 }
 
 static void uart_put_hex32(uint32_t value)
@@ -196,6 +199,26 @@ static void run_ram_test(void)
     }
 
     uart_puts("RAM=OK\n> ");
+}
+
+static void run_npu_mmio_test(void)
+{
+    NPU_VEC_A = NPU_DEMO_VEC_A;
+    NPU_VEC_B = NPU_DEMO_VEC_B;
+    npu_start();
+
+    uart_puts((npu_status() & 0x2u) && (NPU_RESULT == NPU_DEMO_EXPECT) ? "NPU=OK RES=" : "NPU=ER RES=");
+    uart_put_hex32(NPU_RESULT);
+    uart_puts("\n> ");
+}
+
+static void run_npu_pcpi_test(void)
+{
+    uint32_t result = (uint32_t)npu_dot4_pcpi(NPU_DEMO_VEC_A, NPU_DEMO_VEC_B);
+
+    uart_puts(result == NPU_DEMO_EXPECT ? "PCPI=OK RES=" : "PCPI=ER RES=");
+    uart_put_hex32(result);
+    uart_puts("\n> ");
 }
 
 static void clear_boot_info(void)
@@ -364,6 +387,12 @@ int main(void)
                 break;
             case 'r':
                 run_ram_test();
+                break;
+            case 'n':
+                run_npu_mmio_test();
+                break;
+            case 'p':
+                run_npu_pcpi_test();
                 break;
             case 'g':
                 run_loaded_program();

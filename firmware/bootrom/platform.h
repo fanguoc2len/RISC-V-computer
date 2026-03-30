@@ -11,6 +11,7 @@
 #define TIMER_BASE       0x20002000u
 #define SPI_BASE         0x20003000u
 #define PS2_BASE         0x20004000u
+#define NPU_BASE         0x20005000u
 
 #define REG32(addr) (*(volatile uint32_t *)(addr))
 #define REG8(addr)  (*(volatile uint8_t *)(addr))
@@ -33,6 +34,11 @@
 
 #define PS2_DATA         REG32(PS2_BASE + 0x00u)
 #define PS2_STATUS       REG32(PS2_BASE + 0x04u)
+
+#define NPU_CTRL         REG32(NPU_BASE + 0x00u)
+#define NPU_VEC_A        REG32(NPU_BASE + 0x04u)
+#define NPU_VEC_B        REG32(NPU_BASE + 0x08u)
+#define NPU_RESULT       REG32(NPU_BASE + 0x0Cu)
 
 static inline void uart_set_divider(uint32_t div)
 {
@@ -74,7 +80,17 @@ static inline void spi_set_divider(uint16_t div)
     REG8(SPI_BASE + 3u) = (uint8_t)(div >> 8);
 }
 
-static inline uint8_t spi_transfer_byte(uint8_t tx)
+static inline void spi_cs_assert(void)
+{
+    SPI_CTRL8 = 0x0Au;
+}
+
+static inline void spi_cs_release(void)
+{
+    SPI_CTRL8 = 0x08u;
+}
+
+static inline uint8_t spi_transfer_byte_hold(uint8_t tx)
 {
     SPI_DATA8 = tx;
     SPI_CTRL8 = 0x0Bu;
@@ -83,8 +99,35 @@ static inline uint8_t spi_transfer_byte(uint8_t tx)
     }
 
     tx = SPI_DATA8;
-    SPI_CTRL8 = 0x08u;
+    SPI_CTRL8 = 0x0Au;
     return tx;
+}
+
+static inline uint8_t spi_transfer_byte(uint8_t tx)
+{
+    spi_cs_assert();
+    tx = spi_transfer_byte_hold(tx);
+    spi_cs_release();
+    return tx;
+}
+
+static inline void npu_start(void)
+{
+    NPU_CTRL = 0x1u;
+}
+
+static inline uint32_t npu_status(void)
+{
+    return NPU_CTRL;
+}
+
+static inline int32_t npu_dot4_pcpi(uint32_t vec_a, uint32_t vec_b)
+{
+    int32_t result;
+    asm volatile(".insn r 0x0b, 0, 0x2a, %0, %1, %2"
+                 : "=r"(result)
+                 : "r"(vec_a), "r"(vec_b));
+    return result;
 }
 
 #endif

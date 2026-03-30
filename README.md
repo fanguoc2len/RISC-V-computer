@@ -50,6 +50,7 @@ Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbo
 | `0x2000_2000` - `0x2000_2013` | Timer counter / compare |
 | `0x2000_3000` - `0x2000_3007` | SPI master |
 | `0x2000_4000` - `0x2000_4007` | PS/2 keyboard |
+| `0x2000_5000` - `0x2000_500F` | NPU-lite dot4 int8 MMIO |
 
 ## Trang thai hien tai
 
@@ -145,6 +146,25 @@ Script nay se:
 - ghi log vao `build\vivado_monitor_sim.log`
 - check chuoi `PASS: monitor shell simulation completed.`
 
+Neu muon quet mot lan ca `monitor_shell_tb` va full `top_basys3_tb` cho cac path moi nhu `NPU=OK` va `PCPI=OK`, dung:
+
+1. GUI:
+   - mo Vivado
+   - `Tools -> Run Tcl Script...`
+   - chon `scripts/run_vivado_npu_regression_gui.tcl`
+
+2. Batch tu Windows CMD:
+
+```bat
+scripts\run_vivado_npu_regression.bat
+```
+
+Script nay se chay lan luot:
+
+- `monitor_shell_tb`
+- `top_basys3_tb`
+- luu summary vao `build\npu_regression_status.txt`
+
 Ban full smoke sim hien tai tu check nhieu dau hieu:
 
 - UART banner co chu `RV32`
@@ -157,6 +177,8 @@ Ban full smoke sim hien tai tu check nhieu dau hieu:
 - shell tra loi lenh `m` bang memory dump ngan (`BI0`, `APP0`)
 - shell tra loi lenh `t` bang thong tin timer (`TIME=`)
 - shell tra loi lenh `r` bang self-test SRAM ngan (`RAM=OK`)
+- shell tra loi lenh `n` bang MMIO NPU-lite dot4 (`NPU=OK`)
+- shell tra loi lenh `p` bang custom instruction qua PCPI (`PCPI=OK`)
 - shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
 - keyboard PS/2 co the kich lai it nhat mot lenh monitor, vi du phim `H` tra lai chuoi `CMDS:`
 - phim PS/2 `A` duoc echo vao shell path va hien `a` roi `?` de chung minh keyboard input di chung duong xu ly voi UART
@@ -206,6 +228,8 @@ scripts\program_basys3.bat
    - gui `i` de thay `BOOTLD=1 ENTRY=10000020 STATUS=00000001`
    - gui `h` de xem help
    - gui `l` de toggle `LED0`
+   - gui `n` de check MMIO NPU-lite
+   - gui `p` de check PCPI/custom instruction NPU-lite
    - man hinh VGA hien status panel tren nen color bars, dong `STAT` = `00000001`
 
 Log mac dinh:
