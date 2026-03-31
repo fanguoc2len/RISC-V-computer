@@ -1,0 +1,328 @@
+:root {
+  --bg: #0c1110;
+  --bg-soft: #151d1b;
+  --panel: rgba(14, 20, 18, 0.86);
+  --panel-strong: rgba(19, 27, 24, 0.96);
+  --line: rgba(133, 244, 165, 0.18);
+  --copy: #ecf3ea;
+  --muted: #a7b5ac;
+  --phosphor: #8bf8a7;
+  --phosphor-dim: #4fd275;
+  --accent: #ffbf69;
+  --danger: #ff7d7d;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --mono: "Cascadia Mono", "IBM Plex Mono", Consolas, "Lucida Console", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(87, 128, 104, 0.22), transparent 35%),
+    linear-gradient(180deg, #121816 0%, #090d0c 100%);
+  color: var(--copy);
+  font-family: var(--mono);
+}
+
+body {
+  padding: 28px;
+}
+
+.shell {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  letter-spacing: 0.18em;
+  font-size: 12px;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1;
+}
+
+.subcopy {
+  max-width: 780px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--copy);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.badge-warm {
+  color: #1a1306;
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(320px, 0.9fr);
+  gap: 22px;
+}
+
+.terminal-card,
+.card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.terminal-card {
+  overflow: hidden;
+}
+
+.terminal-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.traffic {
+  display: flex;
+  gap: 8px;
+}
+
+.traffic span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.traffic span:nth-child(1) { background: #f26d6d; }
+.traffic span:nth-child(2) { background: #f0bf66; }
+.traffic span:nth-child(3) { background: #77dc87; }
+
+.terminal-title {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.terminal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 14px;
+  background: linear-gradient(180deg, #f6cb80 0%, #f0b860 100%);
+  color: #191202;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(240, 184, 96, 0.22);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+.screen-wrap {
+  position: relative;
+  padding: 22px;
+  background:
+    radial-gradient(circle at top, rgba(77, 210, 117, 0.12), transparent 34%),
+    linear-gradient(180deg, #07110a 0%, #030705 100%);
+}
+
+.screen-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 22px;
+  pointer-events: none;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.02) 0,
+      rgba(255, 255, 255, 0.02) 2px,
+      transparent 2px,
+      transparent 4px
+    );
+  mix-blend-mode: screen;
+  opacity: 0.65;
+}
+
+.screen {
+  position: relative;
+  min-height: 720px;
+  margin: 0;
+  padding: 22px;
+  border: 1px solid rgba(139, 248, 167, 0.16);
+  border-radius: 18px;
+  background: rgba(6, 10, 7, 0.92);
+  color: var(--phosphor);
+  text-shadow: 0 0 10px rgba(139, 248, 167, 0.25);
+  box-shadow:
+    inset 0 0 40px rgba(77, 210, 117, 0.08),
+    0 0 28px rgba(77, 210, 117, 0.07);
+  font-size: 17px;
+  line-height: 1.34;
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+.terminal-hint {
+  padding: 16px 20px 20px;
+  color: var(--muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.sidebar {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.card {
+  padding: 18px;
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.kv-grid {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.kv-grid div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.kv-grid dt {
+  color: var(--muted);
+}
+
+.kv-grid dd {
+  margin: 0;
+  text-align: right;
+  color: var(--copy);
+}
+
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+  gap: 10px;
+}
+
+.shortcut-grid button {
+  width: 100%;
+  padding: 12px 10px;
+}
+
+.shortcut-grid button.app-key {
+  background: linear-gradient(180deg, #8be7b4 0%, #58c984 100%);
+}
+
+.cursor {
+  color: var(--phosphor-dim);
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@media (max-width: 1120px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .screen {
+    min-height: 560px;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    padding: 16px;
+  }
+
+  .hero,
+  .terminal-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-badges,
+  .terminal-actions {
+    justify-content: flex-start;
+  }
+
+  .screen {
+    min-height: 460px;
+    font-size: 15px;
+  }
+}

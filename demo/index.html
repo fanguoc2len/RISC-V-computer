@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RV32 PC Offline Demo</title>
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">OFFLINE PRESENTATION MODE</p>
+        <h1>RV32 PC Demo Console</h1>
+        <p class="subcopy">
+          Host-side companion demo for the current monitor shell, SPI boot flow, VGA text mode,
+          PS/2 input, and NPU-lite paths. No board or Vivado GUI needed.
+        </p>
+      </div>
+      <div class="hero-badges">
+        <span class="badge" id="mode-badge">MONITOR</span>
+        <span class="badge badge-warm">NO BOARD</span>
+        <span class="badge">BOOT IMAGE LIVE</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="terminal-card">
+        <div class="terminal-topbar">
+          <div class="traffic">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="terminal-title">VGA text console mirror</div>
+          <div class="terminal-actions">
+            <button id="reset-button" type="button">Reset Machine</button>
+            <button id="autoplay-button" type="button">Run Showcase</button>
+          </div>
+        </div>
+        <div class="screen-wrap">
+          <pre id="screen" class="screen" aria-label="RV32 PC terminal output"></pre>
+        </div>
+        <div class="terminal-hint">
+          Keyboard is live. Type one of:
+          <span id="command-hint">h c l b k i m t r n p v x g</span>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="card status-card">
+          <h2>Live Status</h2>
+          <dl class="kv-grid">
+            <div><dt>Mode</dt><dd id="status-mode">MONITOR</dd></div>
+            <div><dt>LED</dt><dd id="status-led">0001</dd></div>
+            <div><dt>TIME</dt><dd id="status-time">00000000</dd></div>
+            <div><dt>PS2</dt><dd id="status-ps2">1C / a</dd></div>
+            <div><dt>STAT</dt><dd id="status-stat">00000001</dd></div>
+            <div><dt>Boot</dt><dd id="status-boot">READY</dd></div>
+          </dl>
+        </section>
+
+        <section class="card">
+          <h2>Boot Image</h2>
+          <dl class="kv-grid">
+            <div><dt>Magic</dt><dd id="boot-magic">RVPC</dd></div>
+            <div><dt>Load</dt><dd id="boot-load">10000020</dd></div>
+            <div><dt>Size</dt><dd id="boot-size">00000000</dd></div>
+            <div><dt>Entry</dt><dd id="boot-entry">10000020</dd></div>
+            <div><dt>Checksum</dt><dd id="boot-checksum">00000000</dd></div>
+            <div><dt>APP0</dt><dd id="boot-app0">00000000</dd></div>
+          </dl>
+        </section>
+
+        <section class="card">
+          <h2>NPU Results</h2>
+          <dl class="kv-grid">
+            <div><dt>DOT4</dt><dd id="npu-dot4">00000032</dd></div>
+            <div><dt>VEC16</dt><dd id="npu-vec16">FFFFFF5C</dd></div>
+            <div><dt>MAT R0</dt><dd id="npu-r0">00000032</dd></div>
+            <div><dt>MAT R1</dt><dd id="npu-r1">FFFFFFFC</dd></div>
+            <div><dt>MAT R2</dt><dd id="npu-r2">FFFFFFCE</dd></div>
+            <div><dt>MAT R3</dt><dd id="npu-r3">000000E2</dd></div>
+          </dl>
+        </section>
+
+        <section class="card">
+          <h2>Quick Keys</h2>
+          <div class="shortcut-grid" id="shortcut-grid"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="demo_data.js"></script>
+  <script src="demo.js"></script>
+</body>
+</html>

@@ -37,6 +37,7 @@ Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbo
 - `firmware/bootrom/`: source boot ROM
 - `constraints/basys3_top.xdc`: pin constraint cho Basys 3
 - `scripts/create_vivado_project.tcl`: tao project Vivado nhanh
+- `demo/`: offline presentation demo cho monitor `RV32` va app `RVOS/32`
 - `docs/`: architecture, boot flow, roadmap, debug notes
 
 ## Memory map
@@ -90,6 +91,53 @@ launch_simulation
    - set top ve `top_basys3`
    - add/refresh `bootrom.mem` neu ban thay firmware
    - run synthesis -> implementation -> bitstream
+
+## Demo khong can board
+
+Neu ban can demo de bao ve/do an va muon tranh bi bat be la "chi la web mock", hay uu tien chay thang Vivado/XSim:
+
+```tcl
+source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_demo_gui.tcl
+```
+
+Script nay chay RTL that trong Vivado, lan luot qua:
+
+- `monitor_shell_tb`
+- `top_basys3_tb`
+- ghi bang chung vao `build/npu_regression_status.txt`
+- luu transcript vao `build/vivado_monitor_npu_regression.log` va `build/vivado_smoke_npu_regression.log`
+
+Neu ban muon xem no giong mot may tinh text-mode hon la chi ngoi nhin waveform, dung ban terminal transcript:
+
+```tcl
+source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_terminal_demo_gui.tcl
+```
+
+Script nay van chay RTL that trong Vivado voi `monitor_shell_tb`, nhung sau khi chay xong se reconstruct transcript UART va in thang ra Tcl console, dong thoi luu vao `build/vivado_terminal_demo.txt`.
+
+`offline companion demo` ben duoi chi nen dung khi ban can mot ban trinh bay nhanh tren host PC, khong nen dung lam bang chung thay cho Vivado/XSim.
+
+Neu can demo gap ma khong muon mo Vivado hay nap Basys 3, repo nay co san mot `offline companion demo`:
+
+```bat
+scripts\run_offline_demo.bat
+```
+
+Neu dang ngoi trong Vivado Tcl console va muon mo demo bang `source`, dung:
+
+```tcl
+source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_offline_demo.tcl
+```
+
+Bo nay se mo `demo/index.html` tren Windows va cho phep:
+
+- go phim truc tiep de kich cac lenh monitor `h c l b k i m t r n p v x g`
+- chay showcase tu dong de di qua `BOOT=OK`, `NPU=OK`, `PCPI=OK`, `V16=OK`, `MAT=OK`, `g`, va `GO=RET`
+- vao app `RVOS/32` voi prompt `APP> `
+- hien footer song dong cho `LED`, `TIME`, `PS2`, `STAT`
+- doc thong tin that tu `boot_image.hex` hien tai de giu thong so demo dong bo voi image dang smoke sim pass
+
+Luu y: day la host-side presentation demo, khong phai waveform/cycle-accurate simulator. Muc tieu cua no la de ban co mot ban "mini PC text mode" mo len la thao tac duoc ngay khi chua can phan cung.
 
 ## Chay smoke simulation tren Windows
 
