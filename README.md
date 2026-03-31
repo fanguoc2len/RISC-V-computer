@@ -182,7 +182,7 @@ Ban full smoke sim hien tai tu check nhieu dau hieu:
 - shell tra loi lenh `p` bang custom instruction qua PCPI (`PCPI=OK`)
 - shell tra loi lenh `v` bang vector-16 accumulate (`V16=OK`)
 - shell tra loi lenh `x` bang matvec4 int8 (`MAT=OK`)
-- shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
+- shell tra loi lenh `g` bang cach chay app `RVOS/32` trong SRAM
 - keyboard PS/2 co the kich lai it nhat mot lenh monitor, vi du phim `H` tra lai chuoi `CMDS:`
 - phim PS/2 `A` duoc echo vao shell path va hien `a` roi `?` de chung minh keyboard input di chung duong xu ly voi UART
 - reset xong monitor tu thu boot image mot lan truoc khi cho lenh tay
@@ -193,9 +193,10 @@ Ban full smoke sim hien tai tu check nhieu dau hieu:
 - smoke sim hien tai co chu y dung `load_addr = entry_addr = 0x1000_0020` de chung minh Boot ROM khong con hardcode `SRAM_BASE`
 - Boot ROM ghi `boot info block` vao `0x1000_0000 .. 0x1000_001F` gom `magic/load_addr/size/entry/checksum/status`
 - `boot info block[6:7]` duoc dung lam snapshot `last_ps2_raw/last_ps2_ascii` de debug keyboard
-- lenh `b` copy duoc payload vao SRAM theo thong tin trong header va lenh `g` jump duoc vao SRAM app mau
-- app SRAM mau tu doc `boot info block`, xac nhan `magic + entry_addr`, roi moi phat marker `I` va `G` qua UART
-- VGA text console giu lai banner/reply cua monitor trong `text_ram`
+- lenh `b` copy duoc payload vao SRAM theo thong tin trong header va lenh `g` jump duoc vao app `RVOS/32`
+- app `RVOS/32` tu doc `boot info block`, xac nhan `magic + entry_addr`, roi phat marker `I/G`, clear man hinh, in `RVOS/32`, va cho prompt `APP> `
+- trong app `RVOS/32`, lenh `n` tra `APPNPU=OK`, lenh `v` tra `APPMAT=OK`, va lenh `q` return ve monitor bang `GO=RET`
+- VGA text console giu lai banner/reply cua monitor va app `RVOS/32` trong `text_ram`
 - dong footer cua VGA hien truc tiep `LED`, `TIME`, `PS2`, `STAT`
 - `VGA HSYNC` co toggle
 

@@ -276,8 +276,9 @@ def spi_transfer(p: Program, tx_byte: int, wait_label: str) -> None:
     spi_begin(p)
     p.label(wait_label)
     p.lw("t1", 0, "s3")
-    p.li("t0", 0x00FA0006)
-    p.beq("t1", "t0", wait_label)
+    # Poll only the busy bit so simulation can safely override the SPI divider.
+    p.andi("t0", "t1", 0x4)
+    p.bne("t0", "zero", wait_label)
     p.lw("t1", 4, "s3")
     spi_end(p)
 
@@ -350,44 +351,326 @@ def build_sample_app(
     sram_base: int,
     gpio_base: int,
     uart_base: int,
+    ps2_base: int,
+    timer_base: int,
+    npu_base: int,
     boot_info_magic: int,
     sample_entry_addr: int,
 ) -> list[int]:
     p = Program()
 
-    p.li("t0", sram_base)
-    p.lw("t1", 0, "t0")
+    p.li("s0", uart_base)
+    p.li("s1", gpio_base)
+    p.li("s2", ps2_base)
+    p.li("s3", npu_base)
+    p.li("s4", sram_base)
+    p.li("s8", timer_base)
+    p.li("s5", 0xA)
+    p.li("s6", 0)
+    p.li("s7", 0)
+
+    p.lw("t1", 0, "s4")
     p.li("t2", boot_info_magic)
-    p.bne("t1", "t2", "app_fail")
+    p.bne("t1", "t2", "app_fail_stub")
 
-    p.lw("t1", 12, "t0")
+    p.lw("t1", 12, "s4")
     p.li("t2", sample_entry_addr)
-    p.bne("t1", "t2", "app_fail")
+    p.bne("t1", "t2", "app_fail_stub")
 
-    p.li("t0", gpio_base)
-    p.li("t1", 0xA)
-    p.sw("t1", 0, "t0")
-
-    p.li("t0", uart_base)
     p.li("t1", ord("I"))
-    p.sw("t1", 4, "t0")
+    p.sw("t1", 4, "s0")
     p.li("t1", ord("G"))
-    p.sw("t1", 4, "t0")
-    p.j("app_halt")
+    p.sw("t1", 4, "s0")
+    p.sw("s5", 0, "s1")
+    putc(p, "s0", "t0", 0x0C)
+    puts(p, "s0", "t0", "RVOS/32\r\n")
+    puts(p, "s0", "t0", "APP SHELL READY\r\n")
+    puts(p, "s0", "t0", "APPCMDS:H C I L T N V Q\r\n")
+    puts(p, "s0", "t0", "APP> ")
+    p.j("app_loop")
+
+    p.label("app_fail_stub")
+    p.j("app_fail")
+
+    p.label("app_redraw_screen")
+    putc(p, "s0", "t0", 0x0C)
+    puts(p, "s0", "t0", "RVOS/32\r\n")
+    puts(p, "s0", "t0", "APP SHELL READY\r\n")
+    puts(p, "s0", "t0", "APPCMDS:H C I L T N V Q\r\n")
+    puts(p, "s0", "t0", "APP> ")
+    p.j("app_loop")
+
+    p.label("app_loop")
+    p.lw("a0", 4, "s0")
+    p.li("t0", 0xFFFFFFFF)
+    p.beq("a0", "t0", "app_poll_ps2")
+    p.andi("a0", "a0", 0xFF)
+    p.j("app_dispatch")
+
+    p.label("app_poll_ps2")
+    p.lw("t1", 4, "s2")
+    p.andi("t1", "t1", 0x1)
+    p.beq("t1", "zero", "app_loop")
+    p.lw("a1", 0, "s2")
+
+    p.li("t0", 0xF0)
+    p.beq("a1", "t0", "app_ps2_mark_break")
+    p.li("t0", 0xE0)
+    p.beq("a1", "t0", "app_ps2_mark_extend")
+    p.bne("s6", "zero", "app_ps2_clear_flags")
+    p.bne("s7", "zero", "app_ps2_clear_flags")
+
+    p.li("t0", 0x21)
+    p.beq("a1", "t0", "app_ps2_key_c")
+    p.li("t0", 0x33)
+    p.beq("a1", "t0", "app_ps2_key_h")
+    p.li("t0", 0x43)
+    p.beq("a1", "t0", "app_ps2_key_i")
+    p.li("t0", 0x4B)
+    p.beq("a1", "t0", "app_ps2_key_l")
+    p.li("t0", 0x31)
+    p.beq("a1", "t0", "app_ps2_key_n")
+    p.li("t0", 0x15)
+    p.beq("a1", "t0", "app_ps2_key_q")
+    p.li("t0", 0x2C)
+    p.beq("a1", "t0", "app_ps2_key_t")
+    p.li("t0", 0x2A)
+    p.beq("a1", "t0", "app_ps2_key_v")
+    p.j("app_loop")
+
+    p.label("app_ps2_mark_break")
+    p.li("s6", 1)
+    p.j("app_loop")
+
+    p.label("app_ps2_mark_extend")
+    p.li("s7", 1)
+    p.j("app_loop")
+
+    p.label("app_ps2_clear_flags")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.j("app_loop")
+
+    p.label("app_ps2_key_c")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("c"))
+    p.j("app_dispatch")
+
+    p.label("app_ps2_key_h")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("h"))
+    p.j("app_dispatch")
+
+    p.label("app_ps2_key_i")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("i"))
+    p.j("app_dispatch")
+
+    p.label("app_ps2_key_l")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("l"))
+    p.j("app_dispatch")
+
+    p.label("app_ps2_key_n")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("n"))
+    p.j("app_dispatch")
+
+    p.label("app_ps2_key_q")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("q"))
+    p.j("app_dispatch")
+
+    p.label("app_ps2_key_t")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("t"))
+    p.j("app_dispatch")
+
+    p.label("app_ps2_key_v")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.li("a0", ord("v"))
+    p.j("app_dispatch")
+
+    p.label("app_dispatch")
+    p.li("s6", 0)
+    p.li("s7", 0)
+    p.sw("a0", 4, "s0")
+    putc(p, "s0", "t0", 0x0D)
+    putc(p, "s0", "t0", 0x0A)
+
+    p.li("t0", ord("h"))
+    p.beq("a0", "t0", "app_cmd_help_stub")
+    p.li("t0", ord("c"))
+    p.beq("a0", "t0", "app_cmd_clear_stub")
+    p.li("t0", ord("i"))
+    p.beq("a0", "t0", "app_cmd_info_stub")
+    p.li("t0", ord("l"))
+    p.beq("a0", "t0", "app_cmd_led_stub")
+    p.li("t0", ord("t"))
+    p.beq("a0", "t0", "app_cmd_time_stub")
+    p.li("t0", ord("n"))
+    p.beq("a0", "t0", "app_cmd_npu_stub")
+    p.li("t0", ord("v"))
+    p.beq("a0", "t0", "app_cmd_matvec_stub")
+    p.li("t0", ord("q"))
+    p.beq("a0", "t0", "app_cmd_quit_stub")
+    puts(p, "s0", "t0", "APP?\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_cmd_help_stub")
+    p.j("app_cmd_help")
+
+    p.label("app_cmd_clear_stub")
+    p.j("app_redraw_screen")
+
+    p.label("app_cmd_info_stub")
+    p.j("app_cmd_info")
+
+    p.label("app_cmd_led_stub")
+    p.j("app_cmd_led")
+
+    p.label("app_cmd_time_stub")
+    p.j("app_cmd_time")
+
+    p.label("app_cmd_npu_stub")
+    p.j("app_cmd_npu")
+
+    p.label("app_cmd_matvec_stub")
+    p.j("app_cmd_matvec")
+
+    p.label("app_cmd_quit_stub")
+    p.j("app_cmd_quit")
+
+    p.label("app_cmd_help")
+    puts(p, "s0", "t0", "APPCMDS:H C I L T N V Q\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_cmd_info")
+    puts(p, "s0", "t0", "APPINFO LD=")
+    p.lw("t1", 4, "s4")
+    put_hex_word(p, "t1", "app_info_load")
+    puts(p, "s0", "t0", " EN=")
+    p.lw("t1", 12, "s4")
+    put_hex_word(p, "t1", "app_info_entry")
+    puts(p, "s0", "t0", " ST=")
+    p.lw("t1", 20, "s4")
+    put_hex_word(p, "t1", "app_info_status")
+    puts(p, "s0", "t0", "\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_cmd_led")
+    p.xori("s5", "s5", 0xF)
+    p.sw("s5", 0, "s1")
+    puts(p, "s0", "t0", "APPLED=")
+    put_hex_word(p, "s5", "app_led")
+    puts(p, "s0", "t0", "\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_cmd_time")
+    puts(p, "s0", "t0", "APPTIME=")
+    p.lw("t1", 0, "s8")
+    put_hex_word(p, "t1", "app_time")
+    puts(p, "s0", "t0", "\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_cmd_npu")
+    p.li("t1", 0xFC03FE01)
+    p.sw("t1", 4, "s3")
+    p.li("t1", 0xFC05FA07)
+    p.sw("t1", 8, "s3")
+    p.li("t1", 0x1)
+    p.sw("t1", 0, "s3")
+    p.lw("t2", 12, "s3")
+    p.lw("t5", 0, "s3")
+    p.andi("t5", "t5", 0x2)
+    p.li("t1", 0x2)
+    p.bne("t5", "t1", "app_npu_fail")
+    p.li("t1", 0x32)
+    p.bne("t2", "t1", "app_npu_fail")
+    puts(p, "s0", "t0", "APPNPU=OK RES=")
+    put_hex_word(p, "t2", "app_npu_ok")
+    puts(p, "s0", "t0", "\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_npu_fail")
+    puts(p, "s0", "t0", "APPNPU=ER RES=")
+    put_hex_word(p, "t2", "app_npu_fail")
+    puts(p, "s0", "t0", "\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_cmd_matvec")
+    p.li("t1", 0xFC05FA07)
+    p.sw("t1", 4, "s3")
+    p.li("t1", 0xFC03FE01)
+    p.sw("t1", 8, "s3")
+    p.li("t1", 0xF8F90605)
+    p.sw("t1", 16, "s3")
+    p.li("t1", 0x04FD02FF)
+    p.sw("t1", 20, "s3")
+    p.li("t1", 0xF40BF609)
+    p.sw("t1", 24, "s3")
+    p.li("t1", 0x10)
+    p.sw("t1", 0, "s3")
+    p.lw("t2", 12, "s3")
+    p.lw("t3", 28, "s3")
+    p.lw("t5", 32, "s3")
+    p.lw("t6", 36, "s3")
+    p.lw("a1", 0, "s3")
+    p.andi("a1", "a1", 0x2)
+    p.li("a0", 0x2)
+    p.bne("a1", "a0", "app_mat_fail")
+    p.li("a0", 0x00000032)
+    p.bne("t2", "a0", "app_mat_fail")
+    p.li("a0", 0xFFFFFFFC)
+    p.bne("t3", "a0", "app_mat_fail")
+    p.li("a0", 0xFFFFFFCE)
+    p.bne("t5", "a0", "app_mat_fail")
+    p.li("a0", 0x000000E2)
+    p.bne("t6", "a0", "app_mat_fail")
+    puts(p, "s0", "t0", "APPMAT=OK R0=")
+    put_hex_word(p, "t2", "app_mat_r0_ok")
+    puts(p, "s0", "t0", " R1=")
+    put_hex_word(p, "t3", "app_mat_r1_ok")
+    puts(p, "s0", "t0", " R2=")
+    put_hex_word(p, "t5", "app_mat_r2_ok")
+    puts(p, "s0", "t0", " R3=")
+    put_hex_word(p, "t6", "app_mat_r3_ok")
+    puts(p, "s0", "t0", "\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_mat_fail")
+    puts(p, "s0", "t0", "APPMAT=ER R0=")
+    put_hex_word(p, "t2", "app_mat_r0_fail")
+    puts(p, "s0", "t0", " R1=")
+    put_hex_word(p, "t3", "app_mat_r1_fail")
+    puts(p, "s0", "t0", " R2=")
+    put_hex_word(p, "t5", "app_mat_r2_fail")
+    puts(p, "s0", "t0", " R3=")
+    put_hex_word(p, "t6", "app_mat_r3_fail")
+    puts(p, "s0", "t0", "\r\nAPP> ")
+    p.j("app_loop")
+
+    p.label("app_cmd_quit")
+    puts(p, "s0", "t0", "APPBYE\r\n")
+    p.jalr("zero", "ra", 0)
 
     p.label("app_fail")
-    p.li("t0", uart_base)
-    p.li("t1", ord("E"))
-    p.sw("t1", 4, "t0")
-
-    p.label("app_halt")
-    p.j("app_halt")
+    puts(p, "s0", "t0", "APPFAIL\r\n")
+    p.jalr("zero", "ra", 0)
 
     p.resolve()
     return words_to_le_bytes(p.words)
 
 
-def build_bootrom() -> list[int]:
+def build_boot_assets() -> tuple[list[int], list[int]]:
     uart_base = 0x20000000
     gpio_base = 0x20001000
     timer_base = 0x20002000
@@ -438,7 +721,16 @@ def build_bootrom() -> list[int]:
     p.li("t0", uart_div)
     p.sw("t0", 0, "s0")
 
-    boot_payload = build_sample_app(sram_base, gpio_base, uart_base, boot_info_magic, sample_entry_addr)
+    boot_payload = build_sample_app(
+        sram_base,
+        gpio_base,
+        uart_base,
+        ps2_base,
+        timer_base,
+        npu_base,
+        boot_info_magic,
+        sample_entry_addr,
+    )
     boot_header = [
         0x52, 0x56, 0x50, 0x43,  # magic: 'RVPC'
         *u32le_bytes(sample_load_addr),
@@ -1075,33 +1367,45 @@ def build_bootrom() -> list[int]:
 
     p.label("cmd_go")
     p.beq("s5", "zero", "go_fail")
-    p.jalr("zero", "s8", 0)
+    p.jalr("ra", "s8", 0)
+    puts(p, "s0", "t0", "GO=RET\r\n> ")
+    p.j("main_loop")
 
     p.label("go_fail")
     puts(p, "s0", "t0", "GO=ER\r\n> ")
     p.j("main_loop")
 
     p.resolve()
-    return p.words
+    return p.words, boot_header + boot_payload
+
+
+def build_bootrom() -> list[int]:
+    words, _boot_image = build_boot_assets()
+    return words
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate bootrom.mem without an external RISC-V toolchain.")
     parser.add_argument("--stdout", action="store_true", help="Write the generated memory image to stdout.")
     parser.add_argument("--output", type=Path, help="Explicit output path for bootrom.mem.")
+    parser.add_argument("--boot-image-output", type=Path, help="Explicit output path for boot_image.hex.")
     args = parser.parse_args()
 
     repo_dir = Path(__file__).resolve().parent.parent
     output_path = args.output or (repo_dir / "bootrom.mem")
-    words = build_bootrom()
+    boot_image_path = args.boot_image_output or (repo_dir / "boot_image.hex")
+    words, boot_image = build_boot_assets()
     contents = "".join(f"{word:08x}\n" for word in words)
+    boot_image_contents = "".join(f"{byte:02x}\n" for byte in boot_image)
 
     if args.stdout:
         sys.stdout.write(contents)
         return
 
     output_path.write_text(contents, encoding="ascii")
+    boot_image_path.write_text(boot_image_contents, encoding="ascii")
     print(f"Wrote {len(words)} words to {output_path}")
+    print(f"Wrote {len(boot_image)} bytes to {boot_image_path}")
 
 
 if __name__ == "__main__":

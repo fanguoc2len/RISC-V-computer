@@ -17,7 +17,7 @@ Tinh den 2026-03-31, nhanh hien tai da co:
 - co path vector-16 accumulate (`v`) de doi chieu MMIO va PCPI tren cung bo du lieu
 - co path matvec4 int8 (`x`) de vuot khoi muc demo dot4 don le
 - co `monitor_shell_tb` de iterate nhanh monitor shell ma khong can full top-level VGA smoke sim
-- app mau trong SRAM chay duoc va phat marker `I`, `G`
+- app `RVOS/32` trong SRAM chay duoc, co marker `I/G`, co prompt `APP> `, va co nhom lenh rieng `h c i l t n v q`
 
 ## Phase 1 - Nen toi thieu chay duoc
 

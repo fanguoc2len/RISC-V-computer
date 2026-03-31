@@ -5,8 +5,10 @@ module top_basys3_tb;
     localparam integer UART_BAUD = 115200;
     localparam integer UART_BIT_CLKS = CLK_FREQ_HZ / UART_BAUD;
     localparam integer PS2_HALF_CLKS = 200;
+    localparam integer SPI_SIM_CLK_DIV = 8;
+    localparam integer BOOT_WAIT_CLKS = 15_000_000;
     localparam integer BOOT_HEADER_BYTES = 32;
-    localparam integer BOOT_PAYLOAD_BYTES = 88;
+    localparam integer SPI_IMAGE_MAX_BYTES = 8192;
     localparam [31:0] BOOT_INFO_MAGIC = 32'h49425652;
     localparam [31:0] NPU_DEMO_EXPECT = 32'h00000032;
     localparam [31:0] NPU_VEC16_EXPECT = 32'hFFFFFF5C;
@@ -46,6 +48,8 @@ module top_basys3_tb;
     integer boot_ok_count;
     integer help_reply_count;
     integer screen_scan_idx;
+    integer app_help_count;
+    integer spi_mem_init_idx;
     reg last_uart_tx;
     reg last_hsync;
     reg uart_mon_read;
@@ -56,7 +60,9 @@ module top_basys3_tb;
     reg [47:0] uart_shift6;
     reg [55:0] uart_shift7;
     reg [63:0] uart_shift8;
+    reg [71:0] uart_shift9;
     reg [7:0] spi_shift_reg;
+    reg [7:0] spi_image_mem [0:SPI_IMAGE_MAX_BYTES-1];
     reg spi_xfer_active;
     reg banner_seen;
     reg help_reply_seen;
@@ -76,9 +82,14 @@ module top_basys3_tb;
     reg mat_reply_seen;
     reg app_info_seen;
     reg app_go_seen;
+    reg app_banner_seen;
+    reg app_help_seen;
+    reg app_npu_ok_seen;
+    reg app_mat_ok_seen;
     reg go_command_sent;
     reg console_banner_seen;
     reg console_help_seen;
+    reg console_prompt_seen;
     reg console_mat_seen;
     reg console_mat_r3_seen;
 
@@ -86,135 +97,6 @@ module top_basys3_tb;
     wire [31:0] uart_mon_div_do;
     wire [31:0] uart_mon_dat_do;
     wire uart_mon_dat_wait;
-
-    function [7:0] spi_image_byte;
-        input integer index;
-        begin
-            case (index)
-                0: spi_image_byte = 8'h52;
-                1: spi_image_byte = 8'h56;
-                2: spi_image_byte = 8'h50;
-                3: spi_image_byte = 8'h43;
-                4: spi_image_byte = 8'h20;
-                5: spi_image_byte = 8'h00;
-                6: spi_image_byte = 8'h00;
-                7: spi_image_byte = 8'h10;
-                8: spi_image_byte = 8'h58;
-                9: spi_image_byte = 8'h00;
-                10: spi_image_byte = 8'h00;
-                11: spi_image_byte = 8'h00;
-                12: spi_image_byte = 8'h20;
-                13: spi_image_byte = 8'h00;
-                14: spi_image_byte = 8'h00;
-                15: spi_image_byte = 8'h10;
-                16: spi_image_byte = 8'hF2;
-                17: spi_image_byte = 8'h83;
-                18: spi_image_byte = 8'h8F;
-                19: spi_image_byte = 8'h46;
-                20: spi_image_byte = 8'h01;
-                21: spi_image_byte = 8'h00;
-                22: spi_image_byte = 8'h00;
-                23: spi_image_byte = 8'h00;
-                24: spi_image_byte = 8'h00;
-                25: spi_image_byte = 8'h00;
-                26: spi_image_byte = 8'h00;
-                27: spi_image_byte = 8'h00;
-                28: spi_image_byte = 8'h00;
-                29: spi_image_byte = 8'h00;
-                30: spi_image_byte = 8'h00;
-                31: spi_image_byte = 8'h00;
-                32: spi_image_byte = 8'hB7;
-                33: spi_image_byte = 8'h02;
-                34: spi_image_byte = 8'h00;
-                35: spi_image_byte = 8'h10;
-                36: spi_image_byte = 8'h03;
-                37: spi_image_byte = 8'hA3;
-                38: spi_image_byte = 8'h02;
-                39: spi_image_byte = 8'h00;
-                40: spi_image_byte = 8'hB7;
-                41: spi_image_byte = 8'h53;
-                42: spi_image_byte = 8'h42;
-                43: spi_image_byte = 8'h49;
-                44: spi_image_byte = 8'h93;
-                45: spi_image_byte = 8'h83;
-                46: spi_image_byte = 8'h23;
-                47: spi_image_byte = 8'h65;
-                48: spi_image_byte = 8'h63;
-                49: spi_image_byte = 8'h1C;
-                50: spi_image_byte = 8'h73;
-                51: spi_image_byte = 8'h02;
-                52: spi_image_byte = 8'h03;
-                53: spi_image_byte = 8'hA3;
-                54: spi_image_byte = 8'hC2;
-                55: spi_image_byte = 8'h00;
-                56: spi_image_byte = 8'hB7;
-                57: spi_image_byte = 8'h03;
-                58: spi_image_byte = 8'h00;
-                59: spi_image_byte = 8'h10;
-                60: spi_image_byte = 8'h93;
-                61: spi_image_byte = 8'h83;
-                62: spi_image_byte = 8'h03;
-                63: spi_image_byte = 8'h02;
-                64: spi_image_byte = 8'h63;
-                65: spi_image_byte = 8'h14;
-                66: spi_image_byte = 8'h73;
-                67: spi_image_byte = 8'h02;
-                68: spi_image_byte = 8'hB7;
-                69: spi_image_byte = 8'h12;
-                70: spi_image_byte = 8'h00;
-                71: spi_image_byte = 8'h20;
-                72: spi_image_byte = 8'h13;
-                73: spi_image_byte = 8'h03;
-                74: spi_image_byte = 8'hA0;
-                75: spi_image_byte = 8'h00;
-                76: spi_image_byte = 8'h23;
-                77: spi_image_byte = 8'hA0;
-                78: spi_image_byte = 8'h62;
-                79: spi_image_byte = 8'h00;
-                80: spi_image_byte = 8'hB7;
-                81: spi_image_byte = 8'h02;
-                82: spi_image_byte = 8'h00;
-                83: spi_image_byte = 8'h20;
-                84: spi_image_byte = 8'h13;
-                85: spi_image_byte = 8'h03;
-                86: spi_image_byte = 8'h90;
-                87: spi_image_byte = 8'h04;
-                88: spi_image_byte = 8'h23;
-                89: spi_image_byte = 8'hA2;
-                90: spi_image_byte = 8'h62;
-                91: spi_image_byte = 8'h00;
-                92: spi_image_byte = 8'h13;
-                93: spi_image_byte = 8'h03;
-                94: spi_image_byte = 8'h70;
-                95: spi_image_byte = 8'h04;
-                96: spi_image_byte = 8'h23;
-                97: spi_image_byte = 8'hA2;
-                98: spi_image_byte = 8'h62;
-                99: spi_image_byte = 8'h00;
-                100: spi_image_byte = 8'h6F;
-                101: spi_image_byte = 8'h00;
-                102: spi_image_byte = 8'h00;
-                103: spi_image_byte = 8'h01;
-                104: spi_image_byte = 8'hB7;
-                105: spi_image_byte = 8'h02;
-                106: spi_image_byte = 8'h00;
-                107: spi_image_byte = 8'h20;
-                108: spi_image_byte = 8'h13;
-                109: spi_image_byte = 8'h03;
-                110: spi_image_byte = 8'h50;
-                111: spi_image_byte = 8'h04;
-                112: spi_image_byte = 8'h23;
-                113: spi_image_byte = 8'hA2;
-                114: spi_image_byte = 8'h62;
-                115: spi_image_byte = 8'h00;
-                116: spi_image_byte = 8'h6F;
-                117: spi_image_byte = 8'h00;
-                118: spi_image_byte = 8'h00;
-                119: spi_image_byte = 8'h00;
-                default: spi_image_byte = 8'hFF;
-            endcase
-        end
-    endfunction
 
     task automatic uart_send_byte;
         input [7:0] data;
@@ -354,6 +236,7 @@ module top_basys3_tb;
         help_reply_count = 0;
         last_uart_tx = 1'b1;
         last_hsync = 1'b1;
+        app_help_count = 0;
         uart_mon_read = 1'b0;
         uart_mon_valid_prev = 1'b0;
         uart_last_byte = 8'h00;
@@ -362,6 +245,7 @@ module top_basys3_tb;
         uart_shift6 = 48'h000000000000;
         uart_shift7 = 56'h00000000000000;
         uart_shift8 = 64'h0000000000000000;
+        uart_shift9 = 72'h000000000000000000;
         spi_shift_reg = 8'hFF;
         spi_xfer_active = 1'b0;
         spi_byte_index = 0;
@@ -383,18 +267,37 @@ module top_basys3_tb;
         mat_reply_seen = 1'b0;
         app_info_seen = 1'b0;
         app_go_seen = 1'b0;
+        app_banner_seen = 1'b0;
+        app_help_seen = 1'b0;
+        app_npu_ok_seen = 1'b0;
+        app_mat_ok_seen = 1'b0;
         go_command_sent = 1'b0;
         console_banner_seen = 1'b0;
         console_help_seen = 1'b0;
+        console_prompt_seen = 1'b0;
         console_mat_seen = 1'b0;
         console_mat_r3_seen = 1'b0;
+
+        for (spi_mem_init_idx = 0; spi_mem_init_idx < SPI_IMAGE_MAX_BYTES; spi_mem_init_idx = spi_mem_init_idx + 1) begin
+            spi_image_mem[spi_mem_init_idx] = 8'hFF;
+        end
+        $readmemh("boot_image.hex", spi_image_mem);
+
+        if (spi_image_mem[0] !== 8'h52 || spi_image_mem[1] !== 8'h56 ||
+            spi_image_mem[2] !== 8'h50 || spi_image_mem[3] !== 8'h43) begin
+            $display("FAIL: SPI image header was not loaded from boot_image.hex.");
+            $finish;
+        end
 
         $display("Starting top_basys3 smoke simulation...");
 
         repeat (20) @(posedge clk);
         btnC = 1'b0;
+        repeat (4) @(posedge clk);
+        dut.soc_i.spi_i.clk_div = SPI_SIM_CLK_DIV[15:0];
+        dut.soc_i.spi_i.div_count = 16'd0;
 
-        wait_for_prompt(2, 2500000);
+        wait_for_prompt(2, BOOT_WAIT_CLKS);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h68);
         wait_for_prompt(3, 400000);
@@ -407,7 +310,7 @@ module top_basys3_tb;
         spi_shift_reg = 8'hFF;
         sd_miso = 1'b1;
         uart_send_byte(8'h62);
-        wait_for_prompt(5, 600000);
+        wait_for_prompt(5, BOOT_WAIT_CLKS);
         ps2_send_byte(8'h1C);
         wait_for_prompt(6, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
@@ -443,6 +346,18 @@ module top_basys3_tb;
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
+        wait_for_prompt(17, 1200000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h68);
+        wait_for_prompt(18, 600000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h6E);
+        wait_for_prompt(19, 700000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h76);
+        wait_for_prompt(20, 1200000);
+        ps2_send_byte(8'h33);
+        wait_for_prompt(21, 600000);
         repeat (2000000) @(posedge clk);
 
         if (!banner_seen) begin
@@ -549,10 +464,10 @@ module top_basys3_tb;
         end
 
         if (dut.soc_i.sram_i.mem[0] !== BOOT_INFO_MAGIC ||
-            dut.soc_i.sram_i.mem[1] !== 32'h10000020 ||
-            dut.soc_i.sram_i.mem[2] !== 32'h00000058 ||
-            dut.soc_i.sram_i.mem[3] !== 32'h10000020 ||
-            dut.soc_i.sram_i.mem[4] !== 32'h468F83F2 ||
+            dut.soc_i.sram_i.mem[1] !== {spi_image_mem[7], spi_image_mem[6], spi_image_mem[5], spi_image_mem[4]} ||
+            dut.soc_i.sram_i.mem[2] !== {spi_image_mem[11], spi_image_mem[10], spi_image_mem[9], spi_image_mem[8]} ||
+            dut.soc_i.sram_i.mem[3] !== {spi_image_mem[15], spi_image_mem[14], spi_image_mem[13], spi_image_mem[12]} ||
+            dut.soc_i.sram_i.mem[4] !== {spi_image_mem[19], spi_image_mem[18], spi_image_mem[17], spi_image_mem[16]} ||
             dut.soc_i.sram_i.mem[5] !== 32'h00000001) begin
             $display("FAIL: Boot info block was not written as expected.");
             $display("      info[0]=0x%08x info[1]=0x%08x info[2]=0x%08x info[3]=0x%08x",
@@ -563,46 +478,10 @@ module top_basys3_tb;
             $finish;
         end
 
-        if (dut.soc_i.sram_i.mem[8] !== 32'h100002B7 ||
-            dut.soc_i.sram_i.mem[9] !== 32'h0002A303 ||
-            dut.soc_i.sram_i.mem[10] !== 32'h494253B7 ||
-            dut.soc_i.sram_i.mem[11] !== 32'h65238393 ||
-            dut.soc_i.sram_i.mem[12] !== 32'h02731C63 ||
-            dut.soc_i.sram_i.mem[13] !== 32'h00C2A303 ||
-            dut.soc_i.sram_i.mem[14] !== 32'h100003B7 ||
-            dut.soc_i.sram_i.mem[15] !== 32'h02038393 ||
-            dut.soc_i.sram_i.mem[16] !== 32'h02731463 ||
-            dut.soc_i.sram_i.mem[17] !== 32'h200012B7 ||
-            dut.soc_i.sram_i.mem[18] !== 32'h00A00313 ||
-            dut.soc_i.sram_i.mem[19] !== 32'h0062A023 ||
-            dut.soc_i.sram_i.mem[20] !== 32'h200002B7 ||
-            dut.soc_i.sram_i.mem[21] !== 32'h04900313 ||
-            dut.soc_i.sram_i.mem[22] !== 32'h0062A223 ||
-            dut.soc_i.sram_i.mem[23] !== 32'h04700313 ||
-            dut.soc_i.sram_i.mem[24] !== 32'h0062A223 ||
-            dut.soc_i.sram_i.mem[25] !== 32'h0100006F ||
-            dut.soc_i.sram_i.mem[26] !== 32'h200002B7 ||
-            dut.soc_i.sram_i.mem[27] !== 32'h04500313 ||
-            dut.soc_i.sram_i.mem[28] !== 32'h0062A223 ||
-            dut.soc_i.sram_i.mem[29] !== 32'h0000006F) begin
-            $display("FAIL: SRAM payload words were not loaded as expected.");
-            $display("      mem[8]=0x%08x mem[9]=0x%08x mem[10]=0x%08x mem[11]=0x%08x",
-                     dut.soc_i.sram_i.mem[8], dut.soc_i.sram_i.mem[9],
-                     dut.soc_i.sram_i.mem[10], dut.soc_i.sram_i.mem[11]);
-            $display("      mem[12]=0x%08x mem[13]=0x%08x mem[14]=0x%08x mem[15]=0x%08x",
-                     dut.soc_i.sram_i.mem[12], dut.soc_i.sram_i.mem[13],
-                     dut.soc_i.sram_i.mem[14], dut.soc_i.sram_i.mem[15]);
-            $display("      mem[16]=0x%08x mem[17]=0x%08x mem[18]=0x%08x mem[19]=0x%08x",
-                     dut.soc_i.sram_i.mem[16], dut.soc_i.sram_i.mem[17],
-                     dut.soc_i.sram_i.mem[18], dut.soc_i.sram_i.mem[19]);
-            $display("      mem[20]=0x%08x mem[21]=0x%08x mem[22]=0x%08x mem[23]=0x%08x",
-                     dut.soc_i.sram_i.mem[20], dut.soc_i.sram_i.mem[21],
-                     dut.soc_i.sram_i.mem[22], dut.soc_i.sram_i.mem[23]);
-            $display("      mem[24]=0x%08x mem[25]=0x%08x mem[26]=0x%08x mem[27]=0x%08x",
-                     dut.soc_i.sram_i.mem[24], dut.soc_i.sram_i.mem[25],
-                     dut.soc_i.sram_i.mem[26], dut.soc_i.sram_i.mem[27]);
-            $display("      mem[28]=0x%08x mem[29]=0x%08x",
-                     dut.soc_i.sram_i.mem[28], dut.soc_i.sram_i.mem[29]);
+        if (dut.soc_i.sram_i.mem[8] === 32'h00000000 || dut.soc_i.sram_i.mem[9] === 32'h00000000) begin
+            $display("FAIL: SRAM payload does not look populated after boot.");
+            $display("      mem[8]=0x%08x mem[9]=0x%08x",
+                     dut.soc_i.sram_i.mem[8], dut.soc_i.sram_i.mem[9]);
             $finish;
         end
 
@@ -616,14 +495,34 @@ module top_basys3_tb;
             $finish;
         end
 
+        if (!app_banner_seen) begin
+            $display("FAIL: Did not observe RVOS/32 app banner after sending 'g'.");
+            $finish;
+        end
+
+        if (!app_help_seen || app_help_count < 3) begin
+            $display("FAIL: Did not observe app help text enough times (startup + UART + PS/2). Count=%0d.", app_help_count);
+            $finish;
+        end
+
+        if (!app_npu_ok_seen) begin
+            $display("FAIL: Did not observe APPNPU=OK reply inside the SRAM app.");
+            $finish;
+        end
+
+        if (!app_mat_ok_seen) begin
+            $display("FAIL: Did not observe APPMAT=OK reply inside the SRAM app.");
+            $finish;
+        end
+
         if (led[3:0] !== 4'hA) begin
             $display("FAIL: SRAM app did not drive LED pattern 0xA after 'g'.");
             $finish;
         end
 
-        if (spi_sclk_posedge_count < ((BOOT_HEADER_BYTES + BOOT_PAYLOAD_BYTES) * 8)) begin
+        if (spi_sclk_posedge_count < ((BOOT_HEADER_BYTES + dut.soc_i.sram_i.mem[2]) * 8)) begin
             $display("FAIL: SPI SCLK toggled only %0d times; expected at least %0d for header + payload read.",
-                     spi_sclk_posedge_count, (BOOT_HEADER_BYTES + BOOT_PAYLOAD_BYTES) * 8);
+                     spi_sclk_posedge_count, (BOOT_HEADER_BYTES + dut.soc_i.sram_i.mem[2]) * 8);
             $finish;
         end
 
@@ -635,16 +534,16 @@ module top_basys3_tb;
         for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 7); screen_scan_idx = screen_scan_idx + 1) begin
             if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h52 &&
                 dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h56 &&
-                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h33 &&
-                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h32 &&
-                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h20 &&
-                dut.vga_i.text_ram[screen_scan_idx + 5] == 8'h50 &&
-                dut.vga_i.text_ram[screen_scan_idx + 6] == 8'h43) begin
+                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h4F &&
+                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h53 &&
+                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h2F &&
+                dut.vga_i.text_ram[screen_scan_idx + 5] == 8'h33 &&
+                dut.vga_i.text_ram[screen_scan_idx + 6] == 8'h32) begin
                 console_banner_seen = 1'b1;
             end
         end
 
-        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 5); screen_scan_idx = screen_scan_idx + 1) begin
+        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 8); screen_scan_idx = screen_scan_idx + 1) begin
             if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h43 &&
                 dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h4D &&
                 dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h44 &&
@@ -654,13 +553,26 @@ module top_basys3_tb;
             end
         end
 
-        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 6); screen_scan_idx = screen_scan_idx + 1) begin
-            if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h4D &&
-                dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h41 &&
-                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h54 &&
-                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h3D &&
-                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h4F &&
-                dut.vga_i.text_ram[screen_scan_idx + 5] == 8'h4B) begin
+        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 5); screen_scan_idx = screen_scan_idx + 1) begin
+            if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h41 &&
+                dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h50 &&
+                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h50 &&
+                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h3E &&
+                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h20) begin
+                console_prompt_seen = 1'b1;
+            end
+        end
+
+        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 9); screen_scan_idx = screen_scan_idx + 1) begin
+            if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h41 &&
+                dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h50 &&
+                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h50 &&
+                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h4D &&
+                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h41 &&
+                dut.vga_i.text_ram[screen_scan_idx + 5] == 8'h54 &&
+                dut.vga_i.text_ram[screen_scan_idx + 6] == 8'h3D &&
+                dut.vga_i.text_ram[screen_scan_idx + 7] == 8'h4F &&
+                dut.vga_i.text_ram[screen_scan_idx + 8] == 8'h4B) begin
                 console_mat_seen = 1'b1;
             end
         end
@@ -682,20 +594,27 @@ module top_basys3_tb;
         end
 
         if (!console_banner_seen) begin
-            $display("WARN: VGA text console did not retain the RV32 PC banner by end-of-test; treating this as normal scroll behavior.");
+            $display("FAIL: VGA text console did not retain the RVOS/32 app banner.");
+            $finish;
         end
 
         if (!console_help_seen) begin
-            $display("WARN: VGA text console did not retain the monitor help line by end-of-test; treating this as normal scroll behavior.");
+            $display("FAIL: VGA text console did not retain the app help line.");
+            $finish;
+        end
+
+        if (!console_prompt_seen) begin
+            $display("FAIL: VGA text console did not retain the APP> prompt.");
+            $finish;
         end
 
         if (!console_mat_seen) begin
-            $display("FAIL: VGA text console did not retain the MAT=OK reply.");
+            $display("FAIL: VGA text console did not retain the APPMAT=OK reply.");
             $finish;
         end
 
         if (!console_mat_r3_seen) begin
-            $display("FAIL: VGA text console did not retain the tail of the MAT result line (R3=000000E2).");
+            $display("FAIL: VGA text console did not retain the tail of the app MAT result line (R3=000000E2).");
             $finish;
         end
 
@@ -720,8 +639,8 @@ module top_basys3_tb;
             end
         end else if (!spi_xfer_active) begin
             spi_xfer_active <= 1'b1;
-            spi_shift_reg <= spi_image_byte(spi_byte_index);
-            sd_miso <= (spi_image_byte(spi_byte_index) >= 8'h80);
+            spi_shift_reg <= spi_image_mem[spi_byte_index];
+            sd_miso <= (spi_image_mem[spi_byte_index] >= 8'h80);
         end else begin
             sd_miso <= spi_shift_reg[6];
             spi_shift_reg <= {spi_shift_reg[6:0], 1'b1};
@@ -752,6 +671,7 @@ module top_basys3_tb;
             uart_shift6 <= {uart_shift6[39:0], uart_mon.recv_buf_data};
             uart_shift7 <= {uart_shift7[47:0], uart_mon.recv_buf_data};
             uart_shift8 <= {uart_shift8[55:0], uart_mon.recv_buf_data};
+            uart_shift9 <= {uart_shift9[63:0], uart_mon.recv_buf_data};
 
             if (uart_mon.recv_buf_data == 8'h3E) begin
                 prompt_count <= prompt_count + 1;
@@ -844,6 +764,29 @@ module top_basys3_tb;
             if (go_command_sent && uart_mon.recv_buf_data == 8'h47) begin
                 app_go_seen <= 1'b1;
                 $display("INFO: Observed SRAM app UART marker 'G' at time %0t.", $time);
+            end
+
+            if (go_command_sent &&
+                {uart_shift7[47:0], uart_mon.recv_buf_data} == {8'h52, 8'h56, 8'h4F, 8'h53, 8'h2F, 8'h33, 8'h32}) begin
+                app_banner_seen <= 1'b1;
+            end
+
+            if (go_command_sent &&
+                {uart_shift8[55:0], uart_mon.recv_buf_data} == {8'h41, 8'h50, 8'h50, 8'h43, 8'h4D, 8'h44, 8'h53, 8'h3A}) begin
+                app_help_seen <= 1'b1;
+                app_help_count <= app_help_count + 1;
+            end
+
+            if (go_command_sent &&
+                {uart_shift9[63:0], uart_mon.recv_buf_data} == {8'h41, 8'h50, 8'h50, 8'h4E, 8'h50, 8'h55, 8'h3D, 8'h4F, 8'h4B}) begin
+                app_npu_ok_seen <= 1'b1;
+                $display("INFO: UART text matched APPNPU=OK at time %0t.", $time);
+            end
+
+            if (go_command_sent &&
+                {uart_shift9[63:0], uart_mon.recv_buf_data} == {8'h41, 8'h50, 8'h50, 8'h4D, 8'h41, 8'h54, 8'h3D, 8'h4F, 8'h4B}) begin
+                app_mat_ok_seen <= 1'b1;
+                $display("INFO: UART text matched APPMAT=OK at time %0t.", $time);
             end
 
             $display("INFO: UART monitor received byte 0x%02x at time %0t.", uart_mon.recv_buf_data, $time);

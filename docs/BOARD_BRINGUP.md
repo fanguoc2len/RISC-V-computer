@@ -75,7 +75,7 @@ Voi ban bring-up hien tai, boot ROM monitor image se lam 3 viec:
 
 1. ghi `GPIO` de bat `LED0`
 2. in banner monitor va cho lenh UART
-3. cho phep lenh `l` toggle `LED0`, lenh `b` validate header boot image `RVPC` qua SPI, lenh `k` kiem tra PS/2, lenh `x` test matvec4 qua NPU, va lenh `g` jump vao app mau trong SRAM, trong khi khoi `VGA` hien lai lich su text shell
+3. cho phep lenh `l` toggle `LED0`, lenh `b` validate header boot image `RVPC` qua SPI, lenh `k` kiem tra PS/2, lenh `x` test matvec4 qua NPU, va lenh `g` jump vao app `RVOS/32` trong SRAM, trong khi khoi `VGA` hien lai lich su text shell
 
 Ban nen thay:
 
@@ -94,7 +94,8 @@ Ban nen thay:
 - gui `p` qua UART thi monitor in `PCPI=OK RES=00000032`
 - gui `v` qua UART thi monitor in `V16=OK MMIO=FFFFFF5C PCPI=FFFFFF5C`
 - gui `x` qua UART thi monitor in `MAT=OK R0=00000032 R1=FFFFFFFC R2=FFFFFFCE R3=000000E2`
-- gui `g` qua UART thi app trong SRAM chay va doi `LED[3:0]` thanh `0xA`
+- gui `g` qua UART thi app `RVOS/32` trong SRAM chay, doi `LED[3:0]` thanh `0xA`, in `RVOS/32`, va cho prompt `APP> `
+- trong app `RVOS/32`, gui `h` se in `APPCMDS:H C I L T N V Q`, gui `n` se in `APPNPU=OK`, gui `v` se in `APPMAT=OK`, va gui `q` se return ve monitor bang `GO=RET`
 - gui phim `H` tu PS/2 thi monitor co the tra lai help `CMDS:`
 - gui phim `A` tu PS/2 thi monitor echo `a`, sau do tra `?` neu ky tu do chua map thanh lenh
 

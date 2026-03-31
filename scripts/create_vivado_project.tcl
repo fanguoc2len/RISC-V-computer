@@ -16,8 +16,10 @@ add_files [glob -nocomplain [file join $repo_dir rtl video *.v]]
 add_files [file join $repo_dir bootrom.mem]
 add_files -fileset constrs_1 [file join $repo_dir constraints basys3_top.xdc]
 add_files -fileset sim_1 [glob -nocomplain [file join $repo_dir tb *.v]]
+add_files -fileset sim_1 [file join $repo_dir boot_image.hex]
 
 set_property file_type {Memory Initialization Files} [get_files [file join $repo_dir bootrom.mem]]
+set_property file_type {Memory Initialization Files} [get_files [file join $repo_dir boot_image.hex]]
 set_property top top_basys3 [get_filesets sources_1]
 set_property top top_basys3_tb [get_filesets sim_1]
 
