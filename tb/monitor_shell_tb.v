@@ -9,6 +9,7 @@ module monitor_shell_tb;
     localparam integer BOOT_PAYLOAD_BYTES = 88;
     localparam [31:0] BOOT_INFO_MAGIC = 32'h49425652;
     localparam [31:0] NPU_DEMO_EXPECT = 32'h00000032;
+    localparam [31:0] NPU_VEC16_EXPECT = 32'hFFFFFF5C;
 
     reg clk;
     reg resetn;
@@ -61,6 +62,7 @@ module monitor_shell_tb;
     reg ram_reply_seen;
     reg npu_reply_seen;
     reg pcpi_reply_seen;
+    reg vec16_reply_seen;
     reg app_info_seen;
     reg app_go_seen;
     reg go_command_sent;
@@ -365,6 +367,7 @@ module monitor_shell_tb;
         ram_reply_seen = 1'b0;
         npu_reply_seen = 1'b0;
         pcpi_reply_seen = 1'b0;
+        vec16_reply_seen = 1'b0;
         app_info_seen = 1'b0;
         app_go_seen = 1'b0;
         go_command_sent = 1'b0;
@@ -414,6 +417,9 @@ module monitor_shell_tb;
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h70);
         wait_for_prompt(14, 400000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h76);
+        wait_for_prompt(15, 800000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
@@ -498,9 +504,14 @@ module monitor_shell_tb;
             $finish;
         end
 
-        if (dut.npu_i.result_reg !== NPU_DEMO_EXPECT) begin
+        if (!vec16_reply_seen) begin
+            $display("FAIL: Did not observe accumulated vec16 NPU reply after sending 'v'.");
+            $finish;
+        end
+
+        if (dut.npu_i.result_reg !== NPU_VEC16_EXPECT) begin
             $display("FAIL: MMIO NPU result register is 0x%08x instead of 0x%08x.",
-                     dut.npu_i.result_reg, NPU_DEMO_EXPECT);
+                     dut.npu_i.result_reg, NPU_VEC16_EXPECT);
             $finish;
         end
 
@@ -700,6 +711,11 @@ module monitor_shell_tb;
             if ({uart_shift7[47:0], uart_mon.recv_buf_data} == {8'h50, 8'h43, 8'h50, 8'h49, 8'h3D, 8'h4F, 8'h4B}) begin
                 pcpi_reply_seen <= 1'b1;
                 $display("INFO: UART text matched PCPI=OK at time %0t.", $time);
+            end
+
+            if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h56, 8'h31, 8'h36, 8'h3D, 8'h4F, 8'h4B}) begin
+                vec16_reply_seen <= 1'b1;
+                $display("INFO: UART text matched V16=OK at time %0t.", $time);
             end
 
             if (go_command_sent && uart_mon.recv_buf_data == 8'h49) begin

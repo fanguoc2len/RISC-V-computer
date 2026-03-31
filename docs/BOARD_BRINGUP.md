@@ -92,6 +92,7 @@ Ban nen thay:
 - gui `r` qua UART thi monitor in `RAM=OK`
 - gui `n` qua UART thi monitor in `NPU=OK RES=00000032`
 - gui `p` qua UART thi monitor in `PCPI=OK RES=00000032`
+- gui `v` qua UART thi monitor in `V16=OK MMIO=FFFFFF5C PCPI=FFFFFF5C`
 - gui `g` qua UART thi app trong SRAM chay va doi `LED[3:0]` thanh `0xA`
 - gui phim `H` tu PS/2 thi monitor co the tra lai help `CMDS:`
 - gui phim `A` tu PS/2 thi monitor echo `a`, sau do tra `?` neu ky tu do chua map thanh lenh
@@ -149,7 +150,7 @@ Day la duong di an toan nhat cho do an 6 thang, vi moi moc deu co cach test ro r
 
 Neu chua co board, dung phien ban mo phong tuong ung:
 
-1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, `STATUS=00000001`, `RAM=OK`, `NPU=OK`, `PCPI=OK`, UART marker `G` tu SRAM app, va `HSYNC`
+1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, `STATUS=00000001`, `RAM=OK`, `NPU=OK`, `PCPI=OK`, `V16=OK`, UART marker `G` tu SRAM app, va `HSYNC`
 2. chay `scripts\run_vivado_monitor_sim.bat` hoac `scripts/run_vivado_monitor_sim_gui.tcl` de iterate nhanh phan monitor shell UART/SPI/PS2
 3. them testbench cho bootloader SPI/SD o muc protocol don gian
 4. chi can hardware that o giai doan cuoi de xac nhan pinout va timing thuc te

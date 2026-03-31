@@ -14,12 +14,28 @@
 #define NPU_DEMO_VEC_A   0xFC03FE01u
 #define NPU_DEMO_VEC_B   0xFC05FA07u
 #define NPU_DEMO_EXPECT  0x00000032u
+#define NPU_VEC16_WORDS  4u
+#define NPU_VEC16_EXPECT 0xFFFFFF5Cu
 
 static const uint32_t ramtest_patterns[RAMTEST_WORDS] = {
     0x13579BDFu,
     0x2468ACE0u,
     0x0F0F55AAu,
     0xA5A5F00Fu,
+};
+
+static const uint32_t npu_vec16_a[NPU_VEC16_WORDS] = {
+    0xFC03FE01u,
+    0xF8F90605u,
+    0x04FD02FFu,
+    0xF40BF609u,
+};
+
+static const uint32_t npu_vec16_b[NPU_VEC16_WORDS] = {
+    0xFC05FA07u,
+    0xFF0102FDu,
+    0xF906FB04u,
+    0x05FC03FEu,
 };
 
 static uint32_t boot_loaded;
@@ -43,7 +59,7 @@ static uint32_t spi_read_u32_le(void)
 static void banner(void)
 {
     uart_puts("RV32 PC\n");
-    uart_puts("h=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi g=go\n> ");
+    uart_puts("h=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi v=vec16 g=go\n> ");
 }
 
 static void show_ps2_status(void)
@@ -68,7 +84,7 @@ static void show_ps2_status(void)
 
 static void show_help(void)
 {
-    uart_puts("CMDS:h l b k i m t r n p g\n> ");
+    uart_puts("CMDS:h l b k i m t r n p v g\n> ");
 }
 
 static void uart_put_hex32(uint32_t value)
@@ -218,6 +234,38 @@ static void run_npu_pcpi_test(void)
 
     uart_puts(result == NPU_DEMO_EXPECT ? "PCPI=OK RES=" : "PCPI=ER RES=");
     uart_put_hex32(result);
+    uart_puts("\n> ");
+}
+
+static void run_npu_vec16_test(void)
+{
+    int32_t pcpi_accum = 0;
+    uint32_t mmio_result;
+    uint32_t pcpi_result;
+    unsigned int i;
+
+    npu_clear_accumulator();
+
+    for (i = 0; i < NPU_VEC16_WORDS; ++i) {
+        NPU_VEC_A = npu_vec16_a[i];
+        NPU_VEC_B = npu_vec16_b[i];
+        if (i == 0u) {
+            npu_start();
+        } else {
+            npu_start_accum();
+        }
+        pcpi_accum += npu_dot4_pcpi(npu_vec16_a[i], npu_vec16_b[i]);
+    }
+
+    mmio_result = NPU_RESULT;
+    pcpi_result = (uint32_t)pcpi_accum;
+
+    uart_puts(((npu_status() & 0x2u) && (mmio_result == NPU_VEC16_EXPECT) && (pcpi_result == NPU_VEC16_EXPECT))
+                  ? "V16=OK MMIO="
+                  : "V16=ER MMIO=");
+    uart_put_hex32(mmio_result);
+    uart_puts(" PCPI=");
+    uart_put_hex32(pcpi_result);
     uart_puts("\n> ");
 }
 
@@ -393,6 +441,9 @@ int main(void)
                 break;
             case 'p':
                 run_npu_pcpi_test();
+                break;
+            case 'v':
+                run_npu_vec16_test();
                 break;
             case 'g':
                 run_loaded_program();

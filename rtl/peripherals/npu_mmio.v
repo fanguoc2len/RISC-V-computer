@@ -38,12 +38,17 @@ module npu_mmio (
                     rdata <= {30'd0, done_reg, 1'b0};
 
                     if (wstrb[0]) begin
+                        if (wdata[2]) begin
+                            result_reg <= 32'h00000000;
+                            done_reg <= 1'b0;
+                        end
+
                         if (wdata[1]) begin
                             done_reg <= 1'b0;
                         end
 
                         if (wdata[0]) begin
-                            result_reg <= dot4_result;
+                            result_reg <= wdata[3] ? (result_reg + dot4_result) : dot4_result;
                             done_reg <= 1'b1;
                         end
                     end

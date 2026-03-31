@@ -40,6 +40,11 @@
 #define NPU_VEC_B        REG32(NPU_BASE + 0x08u)
 #define NPU_RESULT       REG32(NPU_BASE + 0x0Cu)
 
+#define NPU_CTRL_START        0x1u
+#define NPU_CTRL_CLEAR_DONE   0x2u
+#define NPU_CTRL_CLEAR_ACC    0x4u
+#define NPU_CTRL_ACCUMULATE   0x8u
+
 static inline void uart_set_divider(uint32_t div)
 {
     UART_DIV = div;
@@ -113,12 +118,27 @@ static inline uint8_t spi_transfer_byte(uint8_t tx)
 
 static inline void npu_start(void)
 {
-    NPU_CTRL = 0x1u;
+    NPU_CTRL = NPU_CTRL_START;
 }
 
 static inline uint32_t npu_status(void)
 {
     return NPU_CTRL;
+}
+
+static inline void npu_clear_done(void)
+{
+    NPU_CTRL = NPU_CTRL_CLEAR_DONE;
+}
+
+static inline void npu_clear_accumulator(void)
+{
+    NPU_CTRL = NPU_CTRL_CLEAR_ACC | NPU_CTRL_CLEAR_DONE;
+}
+
+static inline void npu_start_accum(void)
+{
+    NPU_CTRL = NPU_CTRL_START | NPU_CTRL_ACCUMULATE;
 }
 
 static inline int32_t npu_dot4_pcpi(uint32_t vec_a, uint32_t vec_b)

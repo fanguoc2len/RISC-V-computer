@@ -24,6 +24,7 @@ Hien tai file `bootrom.mem` o root repo la **monitor image** de Vivado synthesiz
 - nhan lenh `r` de tu test mot vung SRAM scratch va tra `RAM=OK`
 - nhan lenh `n` de goi MMIO NPU-lite dot4 int8 va tra `NPU=OK RES=00000032`
 - nhan lenh `p` de goi custom instruction qua PCPI va tra `PCPI=OK RES=00000032`
+- nhan lenh `v` de chay 4 lan dot4 tich luy thanh vector-16 va tra `V16=OK MMIO=FFFFFF5C PCPI=FFFFFF5C`
 - nhan lenh `g` de jump vao app mau da load trong SRAM
 - co the dung mot nhom phim PS/2 (`h l b k i m t r g`) de kich lai truc tiep cac lenh monitor qua keyboard
 - ky tu PS/2 decode duoc nhu `a` cung di vao shell input path, duoc echo ra UART, va neu chua map thanh lenh thi monitor tra `?`

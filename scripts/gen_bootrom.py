@@ -405,6 +405,13 @@ def build_bootrom() -> list[int]:
     npu_demo_vec_a = 0xFC03FE01
     npu_demo_vec_b = 0xFC05FA07
     npu_demo_expected = 0x00000032
+    npu_vec16_pairs = [
+        (0xFC03FE01, 0xFC05FA07),
+        (0xF8F90605, 0xFF0102FD),
+        (0x04FD02FF, 0xF906FB04),
+        (0xF40BF609, 0x05FC03FE),
+    ]
+    npu_vec16_expected = 0xFFFFFF5C
 
     p = Program()
 
@@ -436,7 +443,7 @@ def build_bootrom() -> list[int]:
         *u32le_bytes(0),
     ]
 
-    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi g=go\r\n> ")
+    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi v=vec16 g=go\r\n> ")
     p.j("boot_try")
 
     p.label("main_loop")
@@ -565,6 +572,8 @@ def build_bootrom() -> list[int]:
     p.beq("a0", "t0", "cmd_npu_stub")
     p.li("t0", ord("p"))
     p.beq("a0", "t0", "cmd_pcpi_stub")
+    p.li("t0", ord("v"))
+    p.beq("a0", "t0", "cmd_vec16_stub")
     p.li("t0", ord("g"))
     p.beq("a0", "t0", "cmd_go_stub")
 
@@ -583,11 +592,14 @@ def build_bootrom() -> list[int]:
     p.label("cmd_pcpi_stub")
     p.j("cmd_pcpi")
 
+    p.label("cmd_vec16_stub")
+    p.j("cmd_vec16")
+
     p.label("cmd_go_stub")
     p.j("cmd_go")
 
     p.label("cmd_help")
-    puts(p, "s0", "t0", "CMDS:h l b k i m t r n p g\r\n> ")
+    puts(p, "s0", "t0", "CMDS:h l b k i m t r n p v g\r\n> ")
     p.j("main_loop")
 
     p.label("cmd_led")
@@ -896,6 +908,45 @@ def build_bootrom() -> list[int]:
     p.label("pcpi_fail")
     puts(p, "s0", "t0", "PCPI=ER RES=")
     put_hex_word(p, "t3", "pcpi_res_fail")
+    puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("cmd_vec16")
+    p.li("t4", npu_base)
+    p.li("t5", 0x6)
+    p.sw("t5", 0, "t4")
+    p.li("t6", 0)
+
+    for index, (vec_a_word, vec_b_word) in enumerate(npu_vec16_pairs):
+        p.li("t1", vec_a_word)
+        p.sw("t1", 4, "t4")
+        p.li("t2", vec_b_word)
+        p.sw("t2", 8, "t4")
+        p.pcpi_dot4("t3", "t1", "t2")
+        p.add("t6", "t6", "t3")
+        p.li("t5", 0x9 if index > 0 else 0x1)
+        p.sw("t5", 0, "t4")
+
+    p.lw("t2", 12, "t4")
+    p.lw("t5", 0, "t4")
+    p.andi("t5", "t5", 0x2)
+    p.li("t1", 0x2)
+    p.bne("t5", "t1", "vec16_fail")
+    p.li("t1", npu_vec16_expected)
+    p.bne("t2", "t1", "vec16_fail")
+    p.bne("t6", "t1", "vec16_fail")
+    puts(p, "s0", "t0", "V16=OK MMIO=")
+    put_hex_word(p, "t2", "vec16_mmio_ok")
+    puts(p, "s0", "t0", " PCPI=")
+    put_hex_word(p, "t6", "vec16_pcpi_ok")
+    puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("vec16_fail")
+    puts(p, "s0", "t0", "V16=ER MMIO=")
+    put_hex_word(p, "t2", "vec16_mmio_fail")
+    puts(p, "s0", "t0", " PCPI=")
+    put_hex_word(p, "t6", "vec16_pcpi_fail")
     puts(p, "s0", "t0", "\r\n> ")
     p.j("main_loop")
 
