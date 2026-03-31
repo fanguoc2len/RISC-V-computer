@@ -39,11 +39,18 @@
 #define NPU_VEC_A        REG32(NPU_BASE + 0x04u)
 #define NPU_VEC_B        REG32(NPU_BASE + 0x08u)
 #define NPU_RESULT       REG32(NPU_BASE + 0x0Cu)
+#define NPU_MAT_ROW1     REG32(NPU_BASE + 0x10u)
+#define NPU_MAT_ROW2     REG32(NPU_BASE + 0x14u)
+#define NPU_MAT_ROW3     REG32(NPU_BASE + 0x18u)
+#define NPU_MAT_RES1     REG32(NPU_BASE + 0x1Cu)
+#define NPU_MAT_RES2     REG32(NPU_BASE + 0x20u)
+#define NPU_MAT_RES3     REG32(NPU_BASE + 0x24u)
 
 #define NPU_CTRL_START        0x1u
 #define NPU_CTRL_CLEAR_DONE   0x2u
 #define NPU_CTRL_CLEAR_ACC    0x4u
 #define NPU_CTRL_ACCUMULATE   0x8u
+#define NPU_CTRL_START_MATVEC 0x10u
 
 static inline void uart_set_divider(uint32_t div)
 {
@@ -139,6 +146,11 @@ static inline void npu_clear_accumulator(void)
 static inline void npu_start_accum(void)
 {
     NPU_CTRL = NPU_CTRL_START | NPU_CTRL_ACCUMULATE;
+}
+
+static inline void npu_start_matvec(void)
+{
+    NPU_CTRL = NPU_CTRL_START_MATVEC;
 }
 
 static inline int32_t npu_dot4_pcpi(uint32_t vec_a, uint32_t vec_b)

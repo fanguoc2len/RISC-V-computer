@@ -24,6 +24,8 @@ module top_basys3 (
     wire [31:0] debug_boot_status;
     wire [7:0] debug_ps2_data;
     wire debug_ps2_valid;
+    wire [7:0] debug_uart_tx_char;
+    wire debug_uart_tx_valid;
 
     always @(posedge clk) begin
         if (!resetn) begin
@@ -53,10 +55,13 @@ module top_basys3 (
         .debug_timer_lo  (debug_timer_lo),
         .debug_boot_status (debug_boot_status),
         .debug_ps2_data  (debug_ps2_data),
-        .debug_ps2_valid (debug_ps2_valid)
+        .debug_ps2_valid (debug_ps2_valid),
+        .debug_uart_tx_char  (debug_uart_tx_char),
+        .debug_uart_tx_valid (debug_uart_tx_valid)
     );
 
-    vga_status_panel vga_i (
+    vga_text_console vga_i (
+        .clk_sys   (clk),
         .clk_pix   (pixel_clk),
         .resetn    (resetn),
         .accent    (gpio_out[7:0]),
@@ -65,6 +70,8 @@ module top_basys3 (
         .boot_status (debug_boot_status),
         .ps2_data  (debug_ps2_data),
         .ps2_valid (debug_ps2_valid),
+        .text_char_valid (debug_uart_tx_valid),
+        .text_char (debug_uart_tx_char),
         .hsync     (Hsync),
         .vsync     (Vsync),
         .red       (vgaRed),

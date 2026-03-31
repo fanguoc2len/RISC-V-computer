@@ -11,7 +11,7 @@ Muc tieu cua buoc bring-up dau tien:
 3. nhin thay 3 dau hieu song co ban:
    - `LED0` sang
    - UART hien banner monitor va prompt
-   - VGA len test pattern
+   - VGA len text console
 
 ## 1. Build bitstream
 
@@ -75,24 +75,25 @@ Voi ban bring-up hien tai, boot ROM monitor image se lam 3 viec:
 
 1. ghi `GPIO` de bat `LED0`
 2. in banner monitor va cho lenh UART
-3. cho phep lenh `l` toggle `LED0`, lenh `b` validate header boot image `RVPC` qua SPI, lenh `k` kiem tra PS/2, va lenh `g` jump vao app mau trong SRAM, trong khi khoi `VGA` van phat test pattern
+3. cho phep lenh `l` toggle `LED0`, lenh `b` validate header boot image `RVPC` qua SPI, lenh `k` kiem tra PS/2, lenh `x` test matvec4 qua NPU, va lenh `g` jump vao app mau trong SRAM, trong khi khoi `VGA` hien lai lich su text shell
 
 Ban nen thay:
 
 - `LED0` sang on dinh
 - cong serial hien banner va prompt `> `
-- man hinh VGA co hinh mau test pattern va status panel
+- man hinh VGA co text console va dong footer `LED/TIME/PS2/STAT`
 - gui `l` qua UART thi `LED0` doi trang thai
 - gui `b` qua UART thi monitor bao `BOOT=OK`
 - gui `k` qua UART thi monitor bao `PS2=OK RAW=.. ASCII=..`
 - gui `i` qua UART thi monitor bao `BOOTLD=1 ENTRY=10000020 STATUS=00000001`
-- dong `STAT` tren VGA panel hien `00000001` sau khi autoboot thanh cong
+- dong footer `STAT` tren VGA hien `00000001` sau khi autoboot thanh cong
 - gui `m` qua UART thi monitor in `BI0=` va `APP0=`
 - gui `t` qua UART thi monitor in `TIME=`
 - gui `r` qua UART thi monitor in `RAM=OK`
 - gui `n` qua UART thi monitor in `NPU=OK RES=00000032`
 - gui `p` qua UART thi monitor in `PCPI=OK RES=00000032`
 - gui `v` qua UART thi monitor in `V16=OK MMIO=FFFFFF5C PCPI=FFFFFF5C`
+- gui `x` qua UART thi monitor in `MAT=OK R0=00000032 R1=FFFFFFFC R2=FFFFFFCE R3=000000E2`
 - gui `g` qua UART thi app trong SRAM chay va doi `LED[3:0]` thanh `0xA`
 - gui phim `H` tu PS/2 thi monitor co the tra lai help `CMDS:`
 - gui phim `A` tu PS/2 thi monitor echo `a`, sau do tra `?` neu ky tu do chua map thanh lenh
@@ -123,7 +124,7 @@ Uu tien kiem tra:
 - `Hsync/Vsync` co dao khong
 - cac chan `vgaRed/Green/Blue` trong `.xdc` da dung chua
 
-Trong ban hien tai, VGA khong phu thuoc vao firmware phuc tap. Neu UART song ma VGA den, kha nang cao la loi o timing/pin/man hinh.
+Trong ban hien tai, VGA text console duoc feed truc tiep tu stream UART debug trong SoC. Neu UART song ma VGA den, kha nang cao la loi o timing/pin/man hinh; neu VGA co len nhung khong hien text moi, kiem tra them duong `debug_uart_tx_valid/debug_uart_tx_char`.
 Neu VGA co len nhung dong `STAT` khong phai `00000001`, uu tien kiem tra lai duong boot SPI/boot image.
 
 ## 6. Neu bitstream nap duoc nhung khong co dau hieu song
@@ -143,14 +144,14 @@ Sau khi board bring-up thanh cong, thu tu nen di tiep la:
 
 1. giu `UART + SRAM + GPIO` that on dinh
 2. lam monitor shell nho qua UART
-3. sau do moi them `SPI/SD bootloader`
-4. cuoi cung moi nang cap `VGA` sang text mode va them `PS/2`
+3. giu `VGA text console + PS/2` on dinh tren board
+4. sau do moi nang cap app/NPU theo huong mini-PC hon
 
 Day la duong di an toan nhat cho do an 6 thang, vi moi moc deu co cach test ro rang tren phan cung that.
 
 Neu chua co board, dung phien ban mo phong tuong ung:
 
-1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, `STATUS=00000001`, `RAM=OK`, `NPU=OK`, `PCPI=OK`, `V16=OK`, UART marker `G` tu SRAM app, va `HSYNC`
+1. smoke sim xac nhan banner `RV32`, reply `CMDS:`, reply `LED=0`, reply `BOOT=OK`, reply `PS2=OK`, `STATUS=00000001`, `RAM=OK`, `NPU=OK`, `PCPI=OK`, `V16=OK`, `MAT=OK`, UART marker `G` tu SRAM app, `HSYNC`, va text trong `VGA text console`
 2. chay `scripts\run_vivado_monitor_sim.bat` hoac `scripts/run_vivado_monitor_sim_gui.tcl` de iterate nhanh phan monitor shell UART/SPI/PS2
 3. them testbench cho bootloader SPI/SD o muc protocol don gian
 4. chi can hardware that o giai doan cuoi de xac nhan pinout va timing thuc te

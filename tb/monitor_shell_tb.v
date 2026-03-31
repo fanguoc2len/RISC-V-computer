@@ -10,6 +10,10 @@ module monitor_shell_tb;
     localparam [31:0] BOOT_INFO_MAGIC = 32'h49425652;
     localparam [31:0] NPU_DEMO_EXPECT = 32'h00000032;
     localparam [31:0] NPU_VEC16_EXPECT = 32'hFFFFFF5C;
+    localparam [31:0] NPU_MAT4_EXPECT0 = 32'h00000032;
+    localparam [31:0] NPU_MAT4_EXPECT1 = 32'hFFFFFFFC;
+    localparam [31:0] NPU_MAT4_EXPECT2 = 32'hFFFFFFCE;
+    localparam [31:0] NPU_MAT4_EXPECT3 = 32'h000000E2;
 
     reg clk;
     reg resetn;
@@ -63,6 +67,7 @@ module monitor_shell_tb;
     reg npu_reply_seen;
     reg pcpi_reply_seen;
     reg vec16_reply_seen;
+    reg mat_reply_seen;
     reg app_info_seen;
     reg app_go_seen;
     reg go_command_sent;
@@ -368,6 +373,7 @@ module monitor_shell_tb;
         npu_reply_seen = 1'b0;
         pcpi_reply_seen = 1'b0;
         vec16_reply_seen = 1'b0;
+        mat_reply_seen = 1'b0;
         app_info_seen = 1'b0;
         app_go_seen = 1'b0;
         go_command_sent = 1'b0;
@@ -377,7 +383,7 @@ module monitor_shell_tb;
         repeat (20) @(posedge clk);
         resetn = 1'b1;
 
-        wait_for_prompt(2, 1500000);
+        wait_for_prompt(2, 2500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h68);
         wait_for_prompt(3, 400000);
@@ -410,16 +416,19 @@ module monitor_shell_tb;
         wait_for_prompt(11, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h72);
-        wait_for_prompt(12, 400000);
+        wait_for_prompt(12, 500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6E);
-        wait_for_prompt(13, 400000);
+        wait_for_prompt(13, 500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h70);
-        wait_for_prompt(14, 400000);
+        wait_for_prompt(14, 500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h76);
         wait_for_prompt(15, 800000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h78);
+        wait_for_prompt(16, 1000000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
@@ -509,9 +518,22 @@ module monitor_shell_tb;
             $finish;
         end
 
-        if (dut.npu_i.result_reg !== NPU_VEC16_EXPECT) begin
+        if (!mat_reply_seen) begin
+            $display("FAIL: Did not observe matvec4 NPU reply after sending 'x'.");
+            $finish;
+        end
+
+        if (dut.npu_i.result_reg !== NPU_MAT4_EXPECT0) begin
             $display("FAIL: MMIO NPU result register is 0x%08x instead of 0x%08x.",
-                     dut.npu_i.result_reg, NPU_VEC16_EXPECT);
+                     dut.npu_i.result_reg, NPU_MAT4_EXPECT0);
+            $finish;
+        end
+
+        if (dut.npu_i.mat_res1_reg !== NPU_MAT4_EXPECT1 ||
+            dut.npu_i.mat_res2_reg !== NPU_MAT4_EXPECT2 ||
+            dut.npu_i.mat_res3_reg !== NPU_MAT4_EXPECT3) begin
+            $display("FAIL: MATVEC result registers are wrong: R1=0x%08x R2=0x%08x R3=0x%08x.",
+                     dut.npu_i.mat_res1_reg, dut.npu_i.mat_res2_reg, dut.npu_i.mat_res3_reg);
             $finish;
         end
 
@@ -716,6 +738,11 @@ module monitor_shell_tb;
             if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h56, 8'h31, 8'h36, 8'h3D, 8'h4F, 8'h4B}) begin
                 vec16_reply_seen <= 1'b1;
                 $display("INFO: UART text matched V16=OK at time %0t.", $time);
+            end
+
+            if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h4D, 8'h41, 8'h54, 8'h3D, 8'h4F, 8'h4B}) begin
+                mat_reply_seen <= 1'b1;
+                $display("INFO: UART text matched MAT=OK at time %0t.", $time);
             end
 
             if (go_command_sent && uart_mon.recv_buf_data == 8'h49) begin

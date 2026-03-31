@@ -23,7 +23,7 @@ Muc tieu cua repo nay khong phai la nhay thang vao mot he thong qua lon, ma la t
   - `timer`
   - `SPI master`
   - `PS/2 keyboard`
-  - `VGA bring-up`
+  - `VGA text console + status footer`
 
 Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbone trong giai doan dau. Ly do la do an chi co 1 master, can debug nhanh, va can tap trung vao boot/display/input truoc khi tang do phuc tap.
 
@@ -33,7 +33,7 @@ Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbo
 - `rtl/soc/riscv_pc_soc.v`: SoC chinh
 - `rtl/memory/`: ROM va SRAM
 - `rtl/peripherals/`: UART/GPIO/timer/SPI/PS2
-- `rtl/video/`: VGA timing va status panel
+- `rtl/video/`: VGA timing va text console
 - `firmware/bootrom/`: source boot ROM
 - `constraints/basys3_top.xdc`: pin constraint cho Basys 3
 - `scripts/create_vivado_project.tcl`: tao project Vivado nhanh
@@ -50,7 +50,7 @@ Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbo
 | `0x2000_2000` - `0x2000_2013` | Timer counter / compare |
 | `0x2000_3000` - `0x2000_3007` | SPI master |
 | `0x2000_4000` - `0x2000_4007` | PS/2 keyboard |
-| `0x2000_5000` - `0x2000_500F` | NPU-lite dot4/accumulate int8 MMIO |
+| `0x2000_5000` - `0x2000_5027` | NPU-lite dot4/matvec4 int8 MMIO |
 
 ## Trang thai hien tai
 
@@ -62,7 +62,7 @@ Phien ban hien tai cung cap:
 - SoC memory-mapped don gian
 - boot ROM monitor image co san de test synth/sim ngay
 - source firmware boot ROM de phat trien tiep
-- VGA status panel de bring-up man hinh, van giu nen color bars de debug nhanh
+- VGA text console `80x29` + dong status footer (`LED/TIME/PS2/STAT`)
 - PS/2 co decode mot phan scan code Set 2 sang ASCII va co the kich mot vai lenh monitor
 - SPI o muc raw-image boot da chay duoc
 - testbench smoke test cho Vivado simulation
@@ -146,7 +146,7 @@ Script nay se:
 - ghi log vao `build\vivado_monitor_sim.log`
 - check chuoi `PASS: monitor shell simulation completed.`
 
-Neu muon quet mot lan ca `monitor_shell_tb` va full `top_basys3_tb` cho cac path moi nhu `NPU=OK`, `PCPI=OK`, va `V16=OK`, dung:
+Neu muon quet mot lan ca `monitor_shell_tb` va full `top_basys3_tb` cho cac path moi nhu `NPU=OK`, `PCPI=OK`, `V16=OK`, va `MAT=OK`, dung:
 
 1. GUI:
    - mo Vivado
@@ -169,6 +169,7 @@ Ban full smoke sim hien tai tu check nhieu dau hieu:
 
 - UART banner co chu `RV32`
 - shell tra loi lenh `h` bang chuoi `CMDS:`
+- shell tra loi lenh `c` bang clear-screen (`0x0C`) va prompt moi
 - shell tra loi lenh `l` bang chuoi `LED=0`
 - shell tra loi lenh `b` bang chuoi `BOOT=OK`
 - shell tra loi lenh `k` bang chuoi `PS2=OK RAW=1C ASCII=a`
@@ -180,6 +181,7 @@ Ban full smoke sim hien tai tu check nhieu dau hieu:
 - shell tra loi lenh `n` bang MMIO NPU-lite dot4 (`NPU=OK`)
 - shell tra loi lenh `p` bang custom instruction qua PCPI (`PCPI=OK`)
 - shell tra loi lenh `v` bang vector-16 accumulate (`V16=OK`)
+- shell tra loi lenh `x` bang matvec4 int8 (`MAT=OK`)
 - shell tra loi lenh `g` bang cach chay app trong SRAM va phat ky tu `G`
 - keyboard PS/2 co the kich lai it nhat mot lenh monitor, vi du phim `H` tra lai chuoi `CMDS:`
 - phim PS/2 `A` duoc echo vao shell path va hien `a` roi `?` de chung minh keyboard input di chung duong xu ly voi UART
@@ -193,7 +195,8 @@ Ban full smoke sim hien tai tu check nhieu dau hieu:
 - `boot info block[6:7]` duoc dung lam snapshot `last_ps2_raw/last_ps2_ascii` de debug keyboard
 - lenh `b` copy duoc payload vao SRAM theo thong tin trong header va lenh `g` jump duoc vao SRAM app mau
 - app SRAM mau tu doc `boot info block`, xac nhan `magic + entry_addr`, roi moi phat marker `I` va `G` qua UART
-- VGA status panel hien truc tiep `LED`, `TIME`, `PS2`, `STAT`
+- VGA text console giu lai banner/reply cua monitor trong `text_ram`
+- dong footer cua VGA hien truc tiep `LED`, `TIME`, `PS2`, `STAT`
 - `VGA HSYNC` co toggle
 
 De regenerate `bootrom.mem` ma khong can RISC-V GCC:
@@ -232,7 +235,8 @@ scripts\program_basys3.bat
    - gui `n` de check MMIO NPU-lite
    - gui `p` de check PCPI/custom instruction NPU-lite
    - gui `v` de check vector-16 accumulate path va doi chieu MMIO/PCPI
-   - man hinh VGA hien status panel tren nen color bars, dong `STAT` = `00000001`
+   - gui `x` de check matvec4 int8 tren NPU MMIO
+   - man hinh VGA hien text console, dong footer `STAT` = `00000001`
 
 Log mac dinh:
 

@@ -231,11 +231,17 @@ class Program:
             if kind == "beq":
                 rs1, rs2, label = args
                 imm = self.labels[label] - pc
-                self.words[index] = self._encode_branch(0x0, rs1, rs2, imm)
+                try:
+                    self.words[index] = self._encode_branch(0x0, rs1, rs2, imm)
+                except AssertionError as exc:
+                    raise AssertionError(f"Branch out of range: beq at word {index} to label {label} (imm={imm}).") from exc
             elif kind == "bne":
                 rs1, rs2, label = args
                 imm = self.labels[label] - pc
-                self.words[index] = self._encode_branch(0x1, rs1, rs2, imm)
+                try:
+                    self.words[index] = self._encode_branch(0x1, rs1, rs2, imm)
+                except AssertionError as exc:
+                    raise AssertionError(f"Branch out of range: bne at word {index} to label {label} (imm={imm}).") from exc
             elif kind == "jal":
                 rd, label = args
                 imm = self.labels[label] - pc
@@ -412,6 +418,7 @@ def build_bootrom() -> list[int]:
         (0xF40BF609, 0x05FC03FE),
     ]
     npu_vec16_expected = 0xFFFFFF5C
+    npu_mat4_expected = [0x00000032, 0xFFFFFFFC, 0xFFFFFFCE, 0x000000E2]
 
     p = Program()
 
@@ -443,7 +450,7 @@ def build_bootrom() -> list[int]:
         *u32le_bytes(0),
     ]
 
-    puts(p, "s0", "t0", "RV32 PC\r\nh=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi v=vec16 g=go\r\n> ")
+    puts(p, "s0", "t0", "RV32 PC\r\nh=help c=clear l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi v=vec16 x=mat g=go\r\n> ")
     p.j("boot_try")
 
     p.label("main_loop")
@@ -467,6 +474,10 @@ def build_bootrom() -> list[int]:
     p.bne("t0", "zero", "ps2_clear_flags")
     p.li("t0", 0x1C)
     p.beq("a1", "t0", "ps2_key_a")
+    p.li("t0", 0x21)
+    p.beq("a1", "t0", "ps2_key_c")
+    p.li("t0", 0x22)
+    p.beq("a1", "t0", "ps2_key_x")
     p.li("t0", 0x32)
     p.beq("a1", "t0", "ps2_key_b")
     p.li("t0", 0x34)
@@ -481,10 +492,16 @@ def build_bootrom() -> list[int]:
     p.beq("a1", "t0", "ps2_key_l")
     p.li("t0", 0x3A)
     p.beq("a1", "t0", "ps2_key_m")
+    p.li("t0", 0x31)
+    p.beq("a1", "t0", "ps2_key_n")
+    p.li("t0", 0x4D)
+    p.beq("a1", "t0", "ps2_key_p")
     p.li("t0", 0x2D)
     p.beq("a1", "t0", "ps2_key_r")
     p.li("t0", 0x2C)
     p.beq("a1", "t0", "ps2_key_t")
+    p.li("t0", 0x2A)
+    p.beq("a1", "t0", "ps2_key_v")
     p.j("main_loop")
 
     p.label("ps2_mark_break")
@@ -501,6 +518,14 @@ def build_bootrom() -> list[int]:
 
     p.label("ps2_key_a")
     p.li("a0", ord("a"))
+    p.j("ps2_store_and_dispatch")
+
+    p.label("ps2_key_c")
+    p.li("a0", ord("c"))
+    p.j("ps2_store_and_dispatch")
+
+    p.label("ps2_key_x")
+    p.li("a0", ord("x"))
     p.j("ps2_store_and_dispatch")
 
     p.label("ps2_key_b")
@@ -531,12 +556,24 @@ def build_bootrom() -> list[int]:
     p.li("a0", ord("m"))
     p.j("ps2_store_and_dispatch")
 
+    p.label("ps2_key_n")
+    p.li("a0", ord("n"))
+    p.j("ps2_store_and_dispatch")
+
+    p.label("ps2_key_p")
+    p.li("a0", ord("p"))
+    p.j("ps2_store_and_dispatch")
+
     p.label("ps2_key_r")
     p.li("a0", ord("r"))
     p.j("ps2_store_and_dispatch")
 
     p.label("ps2_key_t")
     p.li("a0", ord("t"))
+    p.j("ps2_store_and_dispatch")
+
+    p.label("ps2_key_v")
+    p.li("a0", ord("v"))
     p.j("ps2_store_and_dispatch")
 
     p.label("ps2_store_and_dispatch")
@@ -551,19 +588,21 @@ def build_bootrom() -> list[int]:
     puts(p, "s0", "t0", "\r\n")
 
     p.li("t0", ord("h"))
-    p.beq("a0", "t0", "cmd_help")
+    p.beq("a0", "t0", "cmd_help_stub")
     p.li("t0", ord("?"))
-    p.beq("a0", "t0", "cmd_help")
+    p.beq("a0", "t0", "cmd_help_stub")
     p.li("t0", ord("l"))
-    p.beq("a0", "t0", "cmd_led")
+    p.beq("a0", "t0", "cmd_led_stub")
+    p.li("t0", ord("c"))
+    p.beq("a0", "t0", "cmd_clear_stub")
     p.li("t0", ord("b"))
-    p.beq("a0", "t0", "cmd_spi")
+    p.beq("a0", "t0", "cmd_spi_stub")
     p.li("t0", ord("k"))
-    p.beq("a0", "t0", "cmd_ps2")
+    p.beq("a0", "t0", "cmd_ps2_stub")
     p.li("t0", ord("i"))
-    p.beq("a0", "t0", "cmd_info")
+    p.beq("a0", "t0", "cmd_info_stub")
     p.li("t0", ord("m"))
-    p.beq("a0", "t0", "cmd_mem")
+    p.beq("a0", "t0", "cmd_mem_stub")
     p.li("t0", ord("t"))
     p.beq("a0", "t0", "cmd_time_stub")
     p.li("t0", ord("r"))
@@ -574,14 +613,37 @@ def build_bootrom() -> list[int]:
     p.beq("a0", "t0", "cmd_pcpi_stub")
     p.li("t0", ord("v"))
     p.beq("a0", "t0", "cmd_vec16_stub")
+    p.li("t0", ord("x"))
+    p.beq("a0", "t0", "cmd_matvec_stub")
     p.li("t0", ord("g"))
     p.beq("a0", "t0", "cmd_go_stub")
 
     puts(p, "s0", "t0", "?\r\n> ")
     p.j("main_loop")
 
+    p.label("cmd_help_stub")
+    p.j("cmd_help")
+
+    p.label("cmd_led_stub")
+    p.j("cmd_led")
+
     p.label("cmd_time_stub")
     p.j("cmd_time")
+
+    p.label("cmd_clear_stub")
+    p.j("cmd_clear")
+
+    p.label("cmd_spi_stub")
+    p.j("cmd_spi")
+
+    p.label("cmd_ps2_stub")
+    p.j("cmd_ps2")
+
+    p.label("cmd_info_stub")
+    p.j("cmd_info")
+
+    p.label("cmd_mem_stub")
+    p.j("cmd_mem")
 
     p.label("cmd_ram_stub")
     p.j("cmd_ram")
@@ -595,11 +657,19 @@ def build_bootrom() -> list[int]:
     p.label("cmd_vec16_stub")
     p.j("cmd_vec16")
 
+    p.label("cmd_matvec_stub")
+    p.j("cmd_matvec")
+
     p.label("cmd_go_stub")
     p.j("cmd_go")
 
     p.label("cmd_help")
-    puts(p, "s0", "t0", "CMDS:h l b k i m t r n p v g\r\n> ")
+    puts(p, "s0", "t0", "CMDS:h c l b k i m t r n p v x g\r\n> ")
+    p.j("main_loop")
+
+    p.label("cmd_clear")
+    putc(p, "s0", "t0", 0x0C)
+    puts(p, "s0", "t0", "> ")
     p.j("main_loop")
 
     p.label("cmd_led")
@@ -947,6 +1017,59 @@ def build_bootrom() -> list[int]:
     put_hex_word(p, "t2", "vec16_mmio_fail")
     puts(p, "s0", "t0", " PCPI=")
     put_hex_word(p, "t6", "vec16_pcpi_fail")
+    puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("cmd_matvec")
+    p.li("t4", npu_base)
+    p.li("t1", npu_demo_vec_b)
+    p.sw("t1", 4, "t4")
+    p.li("t1", npu_vec16_pairs[0][0])
+    p.sw("t1", 8, "t4")
+    p.li("t1", npu_vec16_pairs[1][0])
+    p.sw("t1", 16, "t4")
+    p.li("t1", npu_vec16_pairs[2][0])
+    p.sw("t1", 20, "t4")
+    p.li("t1", npu_vec16_pairs[3][0])
+    p.sw("t1", 24, "t4")
+    p.li("t1", 0x10)
+    p.sw("t1", 0, "t4")
+    p.lw("t2", 12, "t4")
+    p.lw("t3", 28, "t4")
+    p.lw("t5", 32, "t4")
+    p.lw("t6", 36, "t4")
+    p.lw("a1", 0, "t4")
+    p.andi("a1", "a1", 0x2)
+    p.li("a0", 0x2)
+    p.bne("a1", "a0", "matvec_fail")
+    p.li("a0", npu_mat4_expected[0])
+    p.bne("t2", "a0", "matvec_fail")
+    p.li("a0", npu_mat4_expected[1])
+    p.bne("t3", "a0", "matvec_fail")
+    p.li("a0", npu_mat4_expected[2])
+    p.bne("t5", "a0", "matvec_fail")
+    p.li("a0", npu_mat4_expected[3])
+    p.bne("t6", "a0", "matvec_fail")
+    puts(p, "s0", "t0", "MAT=OK R0=")
+    put_hex_word(p, "t2", "matvec_r0_ok")
+    puts(p, "s0", "t0", " R1=")
+    put_hex_word(p, "t3", "matvec_r1_ok")
+    puts(p, "s0", "t0", " R2=")
+    put_hex_word(p, "t5", "matvec_r2_ok")
+    puts(p, "s0", "t0", " R3=")
+    put_hex_word(p, "t6", "matvec_r3_ok")
+    puts(p, "s0", "t0", "\r\n> ")
+    p.j("main_loop")
+
+    p.label("matvec_fail")
+    puts(p, "s0", "t0", "MAT=ER R0=")
+    put_hex_word(p, "t2", "matvec_r0_fail")
+    puts(p, "s0", "t0", " R1=")
+    put_hex_word(p, "t3", "matvec_r1_fail")
+    puts(p, "s0", "t0", " R2=")
+    put_hex_word(p, "t5", "matvec_r2_fail")
+    puts(p, "s0", "t0", " R3=")
+    put_hex_word(p, "t6", "matvec_r3_fail")
     puts(p, "s0", "t0", "\r\n> ")
     p.j("main_loop")
 

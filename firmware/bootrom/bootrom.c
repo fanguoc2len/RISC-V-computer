@@ -16,6 +16,10 @@
 #define NPU_DEMO_EXPECT  0x00000032u
 #define NPU_VEC16_WORDS  4u
 #define NPU_VEC16_EXPECT 0xFFFFFF5Cu
+#define NPU_MAT4_EXPECT0 0x00000032u
+#define NPU_MAT4_EXPECT1 0xFFFFFFFCu
+#define NPU_MAT4_EXPECT2 0xFFFFFFCEu
+#define NPU_MAT4_EXPECT3 0x000000E2u
 
 static const uint32_t ramtest_patterns[RAMTEST_WORDS] = {
     0x13579BDFu,
@@ -59,7 +63,7 @@ static uint32_t spi_read_u32_le(void)
 static void banner(void)
 {
     uart_puts("RV32 PC\n");
-    uart_puts("h=help l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi v=vec16 g=go\n> ");
+    uart_puts("h=help c=clear l=led b=boot k=ps2 i=info m=mem t=time r=ram n=npu p=pcpi v=vec16 x=mat g=go\n> ");
 }
 
 static void show_ps2_status(void)
@@ -84,7 +88,7 @@ static void show_ps2_status(void)
 
 static void show_help(void)
 {
-    uart_puts("CMDS:h l b k i m t r n p v g\n> ");
+    uart_puts("CMDS:h c l b k i m t r n p v x g\n> ");
 }
 
 static void uart_put_hex32(uint32_t value)
@@ -101,6 +105,8 @@ static char decode_ps2_ascii(uint8_t scan_code)
 {
     switch (scan_code) {
     case 0x1Cu: return 'a';
+    case 0x21u: return 'c';
+    case 0x22u: return 'x';
     case 0x32u: return 'b';
     case 0x34u: return 'g';
     case 0x33u: return 'h';
@@ -108,8 +114,11 @@ static char decode_ps2_ascii(uint8_t scan_code)
     case 0x42u: return 'k';
     case 0x4Bu: return 'l';
     case 0x3Au: return 'm';
+    case 0x31u: return 'n';
+    case 0x4Du: return 'p';
     case 0x2Du: return 'r';
     case 0x2Cu: return 't';
+    case 0x2Au: return 'v';
     default:    return 0;
     }
 }
@@ -269,6 +278,32 @@ static void run_npu_vec16_test(void)
     uart_puts("\n> ");
 }
 
+static void run_npu_matvec_test(void)
+{
+    NPU_VEC_A = NPU_DEMO_VEC_B;
+    NPU_VEC_B = npu_vec16_a[0];
+    NPU_MAT_ROW1 = npu_vec16_a[1];
+    NPU_MAT_ROW2 = npu_vec16_a[2];
+    NPU_MAT_ROW3 = npu_vec16_a[3];
+    npu_start_matvec();
+
+    uart_puts(((npu_status() & 0x2u) &&
+               (NPU_RESULT == NPU_MAT4_EXPECT0) &&
+               (NPU_MAT_RES1 == NPU_MAT4_EXPECT1) &&
+               (NPU_MAT_RES2 == NPU_MAT4_EXPECT2) &&
+               (NPU_MAT_RES3 == NPU_MAT4_EXPECT3))
+                  ? "MAT=OK R0="
+                  : "MAT=ER R0=");
+    uart_put_hex32(NPU_RESULT);
+    uart_puts(" R1=");
+    uart_put_hex32(NPU_MAT_RES1);
+    uart_puts(" R2=");
+    uart_put_hex32(NPU_MAT_RES2);
+    uart_puts(" R3=");
+    uart_put_hex32(NPU_MAT_RES3);
+    uart_puts("\n> ");
+}
+
 static void clear_boot_info(void)
 {
     unsigned int i;
@@ -418,6 +453,10 @@ int main(void)
             case '?':
                 show_help();
                 break;
+            case 'c':
+                uart_putc('\f');
+                uart_puts("> ");
+                break;
             case 'b':
                 retry_sd_boot();
                 break;
@@ -444,6 +483,9 @@ int main(void)
                 break;
             case 'v':
                 run_npu_vec16_test();
+                break;
+            case 'x':
+                run_npu_matvec_test();
                 break;
             case 'g':
                 run_loaded_program();

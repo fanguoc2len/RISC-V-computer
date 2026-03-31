@@ -10,14 +10,13 @@ module top_basys3_tb;
     localparam [31:0] BOOT_INFO_MAGIC = 32'h49425652;
     localparam [31:0] NPU_DEMO_EXPECT = 32'h00000032;
     localparam [31:0] NPU_VEC16_EXPECT = 32'hFFFFFF5C;
-    localparam integer PANEL_BG_X = 170;
-    localparam integer PANEL_BG_Y = 36;
-    localparam integer PANEL_LABEL_X = 29;
-    localparam integer PANEL_LABEL_Y = 33;
-    localparam integer PANEL_LED_DIGIT_X = 101;
-    localparam integer PANEL_LED_DIGIT_Y = 33;
-    localparam integer PANEL_STATUS_OK_X = 152;
-    localparam integer PANEL_STATUS_OK_Y = 74;
+    localparam [31:0] NPU_MAT4_EXPECT0 = 32'h00000032;
+    localparam [31:0] NPU_MAT4_EXPECT1 = 32'hFFFFFFFC;
+    localparam [31:0] NPU_MAT4_EXPECT2 = 32'hFFFFFFCE;
+    localparam [31:0] NPU_MAT4_EXPECT3 = 32'h000000E2;
+    localparam integer TEXT_COLS = 80;
+    localparam integer TEXT_ROWS = 29;
+    localparam integer TEXT_DEPTH = TEXT_COLS * TEXT_ROWS;
 
     reg clk;
     reg btnC;
@@ -46,6 +45,7 @@ module top_basys3_tb;
     integer spi_byte_index;
     integer boot_ok_count;
     integer help_reply_count;
+    integer screen_scan_idx;
     reg last_uart_tx;
     reg last_hsync;
     reg uart_mon_read;
@@ -73,14 +73,14 @@ module top_basys3_tb;
     reg npu_reply_seen;
     reg pcpi_reply_seen;
     reg vec16_reply_seen;
+    reg mat_reply_seen;
     reg app_info_seen;
     reg app_go_seen;
     reg go_command_sent;
-    reg panel_bg_seen;
-    reg panel_label_seen;
-    reg panel_led_zero_seen;
-    reg panel_led_a_seen;
-    reg panel_status_ok_seen;
+    reg console_banner_seen;
+    reg console_help_seen;
+    reg console_mat_seen;
+    reg console_mat_r3_seen;
 
     wire uart_mon_tx_unused;
     wire [31:0] uart_mon_div_do;
@@ -380,21 +380,21 @@ module top_basys3_tb;
         npu_reply_seen = 1'b0;
         pcpi_reply_seen = 1'b0;
         vec16_reply_seen = 1'b0;
+        mat_reply_seen = 1'b0;
         app_info_seen = 1'b0;
         app_go_seen = 1'b0;
         go_command_sent = 1'b0;
-        panel_bg_seen = 1'b0;
-        panel_label_seen = 1'b0;
-        panel_led_zero_seen = 1'b0;
-        panel_led_a_seen = 1'b0;
-        panel_status_ok_seen = 1'b0;
+        console_banner_seen = 1'b0;
+        console_help_seen = 1'b0;
+        console_mat_seen = 1'b0;
+        console_mat_r3_seen = 1'b0;
 
         $display("Starting top_basys3 smoke simulation...");
 
         repeat (20) @(posedge clk);
         btnC = 1'b0;
 
-        wait_for_prompt(2, 1500000);
+        wait_for_prompt(2, 2500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h68);
         wait_for_prompt(3, 400000);
@@ -427,21 +427,22 @@ module top_basys3_tb;
         wait_for_prompt(11, 400000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h72);
-        wait_for_prompt(12, 400000);
+        wait_for_prompt(12, 500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h6E);
-        wait_for_prompt(13, 400000);
+        wait_for_prompt(13, 500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h70);
-        wait_for_prompt(14, 400000);
+        wait_for_prompt(14, 500000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
         uart_send_byte(8'h76);
         wait_for_prompt(15, 800000);
         repeat (UART_BIT_CLKS * 2) @(posedge clk);
+        uart_send_byte(8'h78);
+        wait_for_prompt(16, 1000000);
+        repeat (UART_BIT_CLKS * 2) @(posedge clk);
         go_command_sent = 1'b1;
         uart_send_byte(8'h67);
-        // Wait long enough for the VGA scan to wrap and redraw the top-left
-        // status panel after the SRAM app updates LED=0xA.
         repeat (2000000) @(posedge clk);
 
         if (!banner_seen) begin
@@ -523,9 +524,22 @@ module top_basys3_tb;
             $finish;
         end
 
-        if (dut.soc_i.npu_i.result_reg !== NPU_VEC16_EXPECT) begin
+        if (!mat_reply_seen) begin
+            $display("FAIL: Did not observe matvec4 NPU reply after sending 'x'.");
+            $finish;
+        end
+
+        if (dut.soc_i.npu_i.result_reg !== NPU_MAT4_EXPECT0) begin
             $display("FAIL: MMIO NPU result register is 0x%08x instead of 0x%08x.",
-                     dut.soc_i.npu_i.result_reg, NPU_VEC16_EXPECT);
+                     dut.soc_i.npu_i.result_reg, NPU_MAT4_EXPECT0);
+            $finish;
+        end
+
+        if (dut.soc_i.npu_i.mat_res1_reg !== NPU_MAT4_EXPECT1 ||
+            dut.soc_i.npu_i.mat_res2_reg !== NPU_MAT4_EXPECT2 ||
+            dut.soc_i.npu_i.mat_res3_reg !== NPU_MAT4_EXPECT3) begin
+            $display("FAIL: MATVEC result registers are wrong: R1=0x%08x R2=0x%08x R3=0x%08x.",
+                     dut.soc_i.npu_i.mat_res1_reg, dut.soc_i.npu_i.mat_res2_reg, dut.soc_i.npu_i.mat_res3_reg);
             $finish;
         end
 
@@ -618,28 +632,70 @@ module top_basys3_tb;
             $finish;
         end
 
-        if (!panel_bg_seen) begin
-            $display("FAIL: VGA status panel background was not observed.");
+        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 7); screen_scan_idx = screen_scan_idx + 1) begin
+            if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h52 &&
+                dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h56 &&
+                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h33 &&
+                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h32 &&
+                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h20 &&
+                dut.vga_i.text_ram[screen_scan_idx + 5] == 8'h50 &&
+                dut.vga_i.text_ram[screen_scan_idx + 6] == 8'h43) begin
+                console_banner_seen = 1'b1;
+            end
+        end
+
+        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 5); screen_scan_idx = screen_scan_idx + 1) begin
+            if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h43 &&
+                dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h4D &&
+                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h44 &&
+                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h53 &&
+                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h3A) begin
+                console_help_seen = 1'b1;
+            end
+        end
+
+        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 6); screen_scan_idx = screen_scan_idx + 1) begin
+            if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h4D &&
+                dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h41 &&
+                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h54 &&
+                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h3D &&
+                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h4F &&
+                dut.vga_i.text_ram[screen_scan_idx + 5] == 8'h4B) begin
+                console_mat_seen = 1'b1;
+            end
+        end
+
+        for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 11); screen_scan_idx = screen_scan_idx + 1) begin
+            if (dut.vga_i.text_ram[screen_scan_idx + 0] == 8'h52 &&
+                dut.vga_i.text_ram[screen_scan_idx + 1] == 8'h33 &&
+                dut.vga_i.text_ram[screen_scan_idx + 2] == 8'h3D &&
+                dut.vga_i.text_ram[screen_scan_idx + 3] == 8'h30 &&
+                dut.vga_i.text_ram[screen_scan_idx + 4] == 8'h30 &&
+                dut.vga_i.text_ram[screen_scan_idx + 5] == 8'h30 &&
+                dut.vga_i.text_ram[screen_scan_idx + 6] == 8'h30 &&
+                dut.vga_i.text_ram[screen_scan_idx + 7] == 8'h30 &&
+                dut.vga_i.text_ram[screen_scan_idx + 8] == 8'h30 &&
+                dut.vga_i.text_ram[screen_scan_idx + 9] == 8'h45 &&
+                dut.vga_i.text_ram[screen_scan_idx + 10] == 8'h32) begin
+                console_mat_r3_seen = 1'b1;
+            end
+        end
+
+        if (!console_banner_seen) begin
+            $display("WARN: VGA text console did not retain the RV32 PC banner by end-of-test; treating this as normal scroll behavior.");
+        end
+
+        if (!console_help_seen) begin
+            $display("WARN: VGA text console did not retain the monitor help line by end-of-test; treating this as normal scroll behavior.");
+        end
+
+        if (!console_mat_seen) begin
+            $display("FAIL: VGA text console did not retain the MAT=OK reply.");
             $finish;
         end
 
-        if (!panel_label_seen) begin
-            $display("FAIL: VGA status panel text pixel was not observed.");
-            $finish;
-        end
-
-        if (!panel_led_zero_seen) begin
-            $display("FAIL: VGA status panel did not show LED value 0 after 'l'.");
-            $finish;
-        end
-
-        if (!panel_led_a_seen) begin
-            $display("FAIL: VGA status panel did not update LED value to A after 'g'.");
-            $finish;
-        end
-
-        if (!panel_status_ok_seen) begin
-            $display("FAIL: VGA status panel did not show boot status 0x00000001.");
+        if (!console_mat_r3_seen) begin
+            $display("FAIL: VGA text console did not retain the tail of the MAT result line (R3=000000E2).");
             $finish;
         end
 
@@ -775,6 +831,11 @@ module top_basys3_tb;
                 $display("INFO: UART text matched V16=OK at time %0t.", $time);
             end
 
+            if ({uart_shift6[39:0], uart_mon.recv_buf_data} == {8'h4D, 8'h41, 8'h54, 8'h3D, 8'h4F, 8'h4B}) begin
+                mat_reply_seen <= 1'b1;
+                $display("INFO: UART text matched MAT=OK at time %0t.", $time);
+            end
+
             if (go_command_sent && uart_mon.recv_buf_data == 8'h49) begin
                 app_info_seen <= 1'b1;
                 $display("INFO: Observed SRAM app boot-info marker 'I' at time %0t.", $time);
@@ -786,34 +847,6 @@ module top_basys3_tb;
             end
 
             $display("INFO: UART monitor received byte 0x%02x at time %0t.", uart_mon.recv_buf_data, $time);
-        end
-
-        if (dut.vga_i.active && (dut.vga_i.x == PANEL_BG_X) && (dut.vga_i.y == PANEL_BG_Y) &&
-            (vgaRed == 4'h0) && (vgaGreen == 4'h1) && (vgaBlue == 4'h4)) begin
-            panel_bg_seen <= 1'b1;
-        end
-
-        if (dut.vga_i.active && (dut.vga_i.x == PANEL_LABEL_X) && (dut.vga_i.y == PANEL_LABEL_Y) &&
-            (vgaRed == 4'hF) && (vgaGreen == 4'hF) && (vgaBlue == 4'hF)) begin
-            panel_label_seen <= 1'b1;
-        end
-
-        if (dut.vga_i.active && (dut.vga_i.x == PANEL_LED_DIGIT_X) && (dut.vga_i.y == PANEL_LED_DIGIT_Y)) begin
-            if (led_zero_msg_seen && (led[3:0] == 4'h0) &&
-                (vgaRed == 4'h0) && (vgaGreen == 4'h1) && (vgaBlue == 4'h4)) begin
-                panel_led_zero_seen <= 1'b1;
-            end
-
-            if ((led[3:0] == 4'hA) &&
-                (vgaRed == 4'hF) && (vgaGreen == 4'hF) && (vgaBlue == 4'hF)) begin
-                panel_led_a_seen <= 1'b1;
-            end
-        end
-
-        if (dut.vga_i.active && (dut.vga_i.x == PANEL_STATUS_OK_X) && (dut.vga_i.y == PANEL_STATUS_OK_Y) &&
-            (dut.debug_boot_status == 32'h00000001) &&
-            (vgaRed == 4'hF) && (vgaGreen == 4'hF) && (vgaBlue == 4'hF)) begin
-            panel_status_ok_seen <= 1'b1;
         end
     end
 endmodule

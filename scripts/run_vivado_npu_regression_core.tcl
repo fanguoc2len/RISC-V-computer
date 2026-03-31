@@ -71,6 +71,9 @@ set monitor_saved_log [file join $build_dir vivado_monitor_npu_regression.log]
 set smoke_saved_log [file join $build_dir vivado_smoke_npu_regression.log]
 
 cd $repo_dir
+catch {mark_wave_config_clean}
+catch {close_sim}
+catch {close_project}
 source [file join $script_dir create_vivado_project.tcl]
 
 if {[catch {

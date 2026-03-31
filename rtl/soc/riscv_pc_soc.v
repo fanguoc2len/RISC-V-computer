@@ -18,7 +18,9 @@ module riscv_pc_soc #(
     output wire [31:0] debug_timer_lo,
     output wire [31:0] debug_boot_status,
     output wire [7:0]  debug_ps2_data,
-    output wire        debug_ps2_valid
+    output wire        debug_ps2_valid,
+    output reg  [7:0]  debug_uart_tx_char,
+    output reg         debug_uart_tx_valid
 );
     localparam [31:0] BOOT_ROM_BASE  = 32'h0000_0000;
     localparam [31:0] BOOT_ROM_BYTES = BOOT_ROM_WORDS * 4;
@@ -38,7 +40,7 @@ module riscv_pc_soc #(
     localparam [26:0] TIMER_SEL      = TIMER_BASE[31:5];
     localparam [28:0] SPI_SEL        = SPI_BASE[31:3];
     localparam [28:0] PS2_SEL        = PS2_BASE[31:3];
-    localparam [27:0] NPU_SEL        = NPU_BASE[31:4];
+    localparam [25:0] NPU_SEL        = NPU_BASE[31:6];
 
     wire        mem_valid;
     wire        mem_instr;
@@ -70,7 +72,7 @@ module riscv_pc_soc #(
     wire sel_timer = mem_valid && (mem_addr[31:5]  == TIMER_SEL) && (mem_addr[4:2] <= 3'd4);
     wire sel_spi   = mem_valid && (mem_addr[31:3]  == SPI_SEL);
     wire sel_ps2   = mem_valid && (mem_addr[31:3]  == PS2_SEL);
-    wire sel_npu   = mem_valid && (mem_addr[31:4]  == NPU_SEL);
+    wire sel_npu   = mem_valid && (mem_addr[31:6]  == NPU_SEL);
     wire sel_none  = mem_valid && !(sel_rom || sel_ram || sel_uart || sel_gpio || sel_timer || sel_spi || sel_ps2 || sel_npu);
 
     wire [31:0] uart_div_do;
@@ -118,16 +120,23 @@ module riscv_pc_soc #(
             ram_ready <= 1'b0;
             invalid_ready <= 1'b0;
             debug_boot_status_r <= 32'h0000_0000;
+            debug_uart_tx_char <= 8'h00;
+            debug_uart_tx_valid <= 1'b0;
         end else begin
             rom_ready <= mem_valid && !mem_ready && sel_rom;
             ram_ready <= mem_valid && !mem_ready && sel_ram;
             invalid_ready <= mem_valid && !mem_ready && sel_none;
+            debug_uart_tx_valid <= uart_dat_sel && mem_valid && mem_wstrb[0] && !uart_dat_wait;
 
             if (mem_valid && !mem_ready && sel_ram && (mem_addr == BOOT_INFO_STATUS_ADDR)) begin
                 if (mem_wstrb[0]) debug_boot_status_r[7:0] <= mem_wdata[7:0];
                 if (mem_wstrb[1]) debug_boot_status_r[15:8] <= mem_wdata[15:8];
                 if (mem_wstrb[2]) debug_boot_status_r[23:16] <= mem_wdata[23:16];
                 if (mem_wstrb[3]) debug_boot_status_r[31:24] <= mem_wdata[31:24];
+            end
+
+            if (uart_dat_sel && mem_valid && mem_wstrb[0] && !uart_dat_wait) begin
+                debug_uart_tx_char <= mem_wdata[7:0];
             end
         end
     end

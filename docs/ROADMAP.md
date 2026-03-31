@@ -5,16 +5,17 @@
 Tinh den 2026-03-31, nhanh hien tai da co:
 
 - smoke simulation pass end-to-end tren `top_basys3_tb`
-- monitor shell qua UART voi cac lenh `h l b k i m t r n p v g`
+- monitor shell qua UART voi cac lenh `h c l b k i m t r n p v x g`
 - bootloader SPI raw image co `header/checksum/jump`
 - `boot info block` va `STATUS=00000001` sau khi boot thanh cong
-- VGA color bars + status panel (`LED`, `TIME`, `PS2`, `STAT`)
+- VGA text console `80x29` + dong footer (`LED`, `TIME`, `PS2`, `STAT`)
 - duong PS/2 co xac nhan trong smoke sim
 - keyboard PS/2 da decode duoc mot nhom scan code Set 2 sang ASCII va co the kich mot phan lenh monitor
 - ky tu PS/2 decode duoc da di vao monitor input path va echo qua UART, khong chi dung cho command hotkey
 - lenh `r` da tu test mot vung SRAM scratch va tra `RAM=OK`
 - co `NPU-lite` dot4 int8 theo 2 duong: MMIO (`n`) va PCPI/custom instruction (`p`)
 - co path vector-16 accumulate (`v`) de doi chieu MMIO va PCPI tren cung bo du lieu
+- co path matvec4 int8 (`x`) de vuot khoi muc demo dot4 don le
 - co `monitor_shell_tb` de iterate nhanh monitor shell ma khong can full top-level VGA smoke sim
 - app mau trong SRAM chay duoc va phat marker `I`, `G`
 
@@ -52,8 +53,8 @@ Deliverables:
 Muc tieu:
 
 - VGA timing 640x480@60Hz
-- test pattern
-- sau do text mode co ban
+- text console `80x29`
+- dong footer status
 
 Deliverables:
 
@@ -67,6 +68,7 @@ Muc tieu:
 - doc scan code tu PS/2
 - echo qua UART
 - convert mot phan thanh ASCII
+- kich lai truc tiep mot nhom lenh monitor qua keyboard
 
 Deliverables:
 
@@ -79,6 +81,7 @@ Muc tieu:
 - shell don gian
 - chay mot vai program nho
 - co the demo "PC toi gian"
+- accelerator NPU co bai test lon hon dot4
 
 Deliverables:
 
