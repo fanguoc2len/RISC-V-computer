@@ -1,48 +1,80 @@
-# RISC-V Computer on FPGA
+# RISC-V Mini Computer on Basys 3 / Artix-7
 
-Starter repository cho do an tot nghiep: xay dung mot may tinh toi gian tren FPGA dua tren `PicoRV32`.
+This repository is an embedded-computer project built around `PicoRV32` on the
+Digilent `Basys 3` board (`XC7A35T`, Artix-7). The goal is to grow a small but
+real FPGA computer step by step instead of jumping straight into a full SoC.
 
-Muc tieu cua repo nay khong phai la nhay thang vao mot he thong qua lon, ma la tao mot duong di thuc te, co the synthesize va debug tung buoc tren FPGA trong khoang 6 thang:
+At its current stage, the project already looks like a serious student bring-up
+platform rather than a toy RTL dump:
 
-1. `PicoRV32 + BRAM + UART + LED + timer`
-2. `SPI + SD bootloader`
-3. `VGA text mode`
-4. `PS/2 keyboard`
-5. `monitor shell` va cac chuong trinh don gian
+- `PicoRV32` CPU with native memory interface
+- boot ROM + unified SRAM in BRAM
+- UART monitor shell
+- GPIO / LED / timer / SPI / PS2 peripherals
+- VGA text console with status footer
+- small NPU-style MMIO and PCPI test paths
+- Vivado simulation flow, build scripts, and presentation demo
 
-## Kien truc du kien
+This repo is the cleaned-up, portfolio-ready version of the original local
+Vivado project under `E:\riscvpicorv32\RISC_V_PicoRV32`.
 
-- CPU: `PicoRV32` native memory interface
-- FPGA target hien tai: `Basys 3 (xc7a35tcpg236-1)`
+## Hardware Target
+
+- Board: `Digilent Basys 3`
+- FPGA: `xc7a35tcpg236-1`
+- Clock: `100 MHz`
+- CPU: `PicoRV32`
 - Memory model: unified address space
-- ROM: boot ROM trong BRAM
-- RAM: scratchpad/unified SRAM trong BRAM
-- I/O map:
-  - `UART`
-  - `GPIO/LED`
-  - `timer`
-  - `SPI master`
-  - `PS/2 keyboard`
-  - `VGA text console + status footer`
 
-Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbone trong giai doan dau. Ly do la do an chi co 1 master, can debug nhanh, va can tap trung vao boot/display/input truoc khi tang do phuc tap.
+## What This Repo Demonstrates
 
-## Cau truc repo
+The project is meant to show practical FPGA system work:
 
-- `rtl/top/top_basys3.v`: top-level cho Basys 3
-- `rtl/soc/riscv_pc_soc.v`: SoC chinh
-- `rtl/memory/`: ROM va SRAM
-- `rtl/peripherals/`: UART/GPIO/timer/SPI/PS2
-- `rtl/video/`: VGA timing va text console
-- `firmware/bootrom/`: source boot ROM
-- `constraints/basys3_top.xdc`: pin constraint cho Basys 3
-- `scripts/create_vivado_project.tcl`: tao project Vivado nhanh
-- `demo/`: offline presentation demo cho monitor `RV32` va app `RVOS/32`
-- `docs/`: architecture, boot flow, roadmap, debug notes
+- top-level board integration
+- memory-mapped peripheral design
+- boot flow design
+- host-verifiable regression paths
+- documentation and scripted bring-up
 
-## Memory map
+For internship or graduation-project review, that matters more than trying to
+look like a huge unfinished operating-system project.
 
-| Address range | Chuc nang |
+## Implemented Features
+
+- boot ROM monitor image that can be simulated immediately
+- raw-image SPI boot path
+- UART command monitor
+- PS/2 keyboard input path
+- VGA text console `80x29` with live footer fields
+- simple memory dump / timer / RAM self-test commands
+- NPU-lite dot4, vector accumulate, and matvec4 validation paths
+- SRAM app handoff via command `g` into `RVOS/32`
+
+## Current Status
+
+This repository is in the "working mini-computer bring-up" phase.
+
+What is already in place:
+
+- end-to-end Vivado simulation benches
+- build scripts for Basys 3
+- offline presentation demo for quick showcasing
+- boot metadata flow through SRAM
+- UART + SPI + PS/2 + VGA integrated in one top-level design
+
+What is still intentionally modest:
+
+- no external DDR
+- no full SD card stack
+- no OS-level runtime
+- no cache / MMU / complex bus fabric
+
+That tradeoff is deliberate. The repo optimizes for believable progress,
+repeatable bring-up, and easy explanation in an interview.
+
+## Memory Map
+
+| Address range | Function |
 | --- | --- |
 | `0x0000_0000` - `0x0000_3FFF` | Boot ROM (16 KB) |
 | `0x1000_0000` - `0x1000_FFFF` | Unified SRAM (64 KB) |
@@ -51,278 +83,142 @@ Lua chon quan trong: repo nay uu tien bus native cua PicoRV32 thay vi AXI/Wishbo
 | `0x2000_2000` - `0x2000_2013` | Timer counter / compare |
 | `0x2000_3000` - `0x2000_3007` | SPI master |
 | `0x2000_4000` - `0x2000_4007` | PS/2 keyboard |
-| `0x2000_5000` - `0x2000_5027` | NPU-lite dot4/matvec4 int8 MMIO |
+| `0x2000_5000` - `0x2000_5027` | NPU-lite dot4 / matvec4 MMIO |
 
-## Trang thai hien tai
+## Repository Layout
 
-Repo nay da duoc khoi tao tu project Basys 3/PicoRV32 co san cua ban o `E:\riscvpicorv32\RISC_V_PicoRV32`, nhung da duoc sap xep lai theo huong de mo rong thanh mot mini personal computer.
+```text
+rtl/
+  top/top_basys3.v          Basys 3 top-level
+  soc/riscv_pc_soc.v        main SoC
+  memory/                   boot ROM and SRAM
+  peripherals/              UART, GPIO, timer, SPI, PS/2, NPU-lite
+  video/                    VGA timing and text console
 
-Phien ban hien tai cung cap:
+tb/
+  monitor_shell_tb.v
+  top_basys3_tb.v
 
-- core `picorv32.v` chinh thuc
-- SoC memory-mapped don gian
-- boot ROM monitor image co san de test synth/sim ngay
-- source firmware boot ROM de phat trien tiep
-- VGA text console `80x29` + dong status footer (`LED/TIME/PS2/STAT`)
-- PS/2 co decode mot phan scan code Set 2 sang ASCII va co the kich mot vai lenh monitor
-- SPI o muc raw-image boot da chay duoc
-- testbench smoke test cho Vivado simulation
-- boot monitor co auto-boot thu image SPI ngay sau reset, sau do fallback ve UART shell
+firmware/bootrom/
+  boot ROM source
 
-## Cach dung nhanh
+scripts/
+  Vivado build, simulation, demo, and programming helpers
 
-1. Mo Vivado TCL console.
-2. Chay:
+demo/
+  host-side presentation companion
+```
+
+## Quick Start
+
+### 1. Create the Vivado project
+
+Open Vivado Tcl console:
 
 ```tcl
-cd <duong-dan-repo>
+cd <repo-path>
 source scripts/create_vivado_project.tcl
 ```
 
-3. Set top la `top_basys3`.
-4. Behavioral simulation:
+This creates the Basys 3 project, sets `top_basys3` as the synthesis top, and
+sets `top_basys3_tb` as the default simulation top.
 
-```tcl
-set_property top top_basys3_tb [get_filesets sim_1]
-launch_simulation
-```
+### 2. Run fast simulation checks
 
-5. Neu muon synthesize len board:
-   - set top ve `top_basys3`
-   - add/refresh `bootrom.mem` neu ban thay firmware
-   - run synthesis -> implementation -> bitstream
-
-## Demo khong can board
-
-Neu ban can demo de bao ve/do an va muon tranh bi bat be la "chi la web mock", hay uu tien chay thang Vivado/XSim:
-
-```tcl
-cd <duong-dan-repo>
-source scripts/run_vivado_demo_gui.tcl
-```
-
-Script nay chay RTL that trong Vivado, lan luot qua:
-
-- `monitor_shell_tb`
-- `top_basys3_tb`
-- ghi bang chung vao `build/npu_regression_status.txt`
-- luu transcript vao `build/vivado_monitor_npu_regression.log` va `build/vivado_smoke_npu_regression.log`
-
-Neu ban muon xem no giong mot may tinh text-mode hon la chi ngoi nhin waveform, dung ban terminal transcript:
-
-```tcl
-cd <duong-dan-repo>
-source scripts/run_vivado_terminal_demo_gui.tcl
-```
-
-Script nay van chay RTL that trong Vivado voi `monitor_shell_tb`, nhung sau khi chay xong se reconstruct transcript UART va in thang ra Tcl console, dong thoi luu vao `build/vivado_terminal_demo.txt`.
-
-`offline companion demo` ben duoi chi nen dung khi ban can mot ban trinh bay nhanh tren host PC, khong nen dung lam bang chung thay cho Vivado/XSim.
-
-Neu can demo gap ma khong muon mo Vivado hay nap Basys 3, repo nay co san mot `offline companion demo`:
-
-```bat
-scripts\run_offline_demo.bat
-```
-
-Neu dang ngoi trong Vivado Tcl console va muon mo demo bang `source`, dung:
-
-```tcl
-cd <duong-dan-repo>
-source scripts/run_offline_demo.tcl
-```
-
-Bo nay se mo `demo/index.html` tren Windows va cho phep:
-
-- go phim truc tiep de kich cac lenh monitor `h c l b k i m t r n p v x g`
-- chay showcase tu dong de di qua `BOOT=OK`, `NPU=OK`, `PCPI=OK`, `V16=OK`, `MAT=OK`, `g`, va `GO=RET`
-- vao app `RVOS/32` voi prompt `APP> `
-- hien footer song dong cho `LED`, `TIME`, `PS2`, `STAT`
-- doc thong tin that tu `boot_image.hex` hien tai de giu thong so demo dong bo voi image dang smoke sim pass
-
-Luu y: day la host-side presentation demo, khong phai waveform/cycle-accurate simulator. Muc tieu cua no la de ban co mot ban "mini PC text mode" mo len la thao tac duoc ngay khi chua can phan cung.
-
-## Chay smoke simulation tren Windows
-
-Tat ca batch script trong repo se uu tien tim Vivado theo thu tu:
-
-1. `VIVADO_BIN`
-2. `%XILINX_VIVADO%\bin`
-3. `PATH`
-4. fallback local `E:\AMDDesignTools\2025.2\Vivado\bin`
-
-Co 2 cach:
-
-1. GUI:
-   - mo Vivado
-   - `Tools -> Run Tcl Script...`
-   - chon `scripts/run_vivado_smoke_sim_gui.tcl`
-   - script nay se giu Vivado mo sau khi simulation xong
-
-2. Batch tu Windows CMD:
-
-```bat
-scripts\run_vivado_smoke_sim.bat
-```
-
-Script nay se:
-
-- tao project Vivado
-- set `top_basys3_tb` cho `sim_1`
-- chay behavioral simulation den khi testbench `$finish`
-- ghi log vao `build\vivado_smoke_sim.log`
-- dong project va thoat Vivado khi chay o che do batch
-
-## Chay monitor shell simulation nhanh tren Windows
-
-Neu ban muon iterate nhanh phan UART monitor / SPI boot / PS2 ma chua can full top-level smoke sim co VGA, dung bench nhe hon `monitor_shell_tb`.
-
-Co 2 cach:
-
-1. GUI:
-   - mo Vivado
-   - `Tools -> Run Tcl Script...`
-   - chon `scripts/run_vivado_monitor_sim_gui.tcl`
-
-2. Batch tu Windows CMD:
+Fast monitor-shell regression:
 
 ```bat
 scripts\run_vivado_monitor_sim.bat
 ```
 
-Script nay se:
+Full smoke simulation:
 
-- tao project Vivado
-- set `monitor_shell_tb` cho `sim_1`
-- chay behavioral simulation den khi testbench `$finish`
-- ghi log vao `build\vivado_monitor_sim.log`
-- check chuoi `PASS: monitor shell simulation completed.`
+```bat
+scripts\run_vivado_smoke_sim.bat
+```
 
-Neu muon quet mot lan ca `monitor_shell_tb` va full `top_basys3_tb` cho cac path moi nhu `NPU=OK`, `PCPI=OK`, `V16=OK`, va `MAT=OK`, dung:
-
-1. GUI:
-   - mo Vivado
-   - `Tools -> Run Tcl Script...`
-   - chon `scripts/run_vivado_npu_regression_gui.tcl`
-
-2. Batch tu Windows CMD:
+NPU and top-level regression:
 
 ```bat
 scripts\run_vivado_npu_regression.bat
 ```
 
-Script nay se chay lan luot:
-
-- `monitor_shell_tb`
-- `top_basys3_tb`
-- luu summary vao `build\npu_regression_status.txt`
-
-Ban full smoke sim hien tai tu check nhieu dau hieu:
-
-- UART banner co chu `RV32`
-- shell tra loi lenh `h` bang chuoi `CMDS:`
-- shell tra loi lenh `c` bang clear-screen (`0x0C`) va prompt moi
-- shell tra loi lenh `l` bang chuoi `LED=0`
-- shell tra loi lenh `b` bang chuoi `BOOT=OK`
-- shell tra loi lenh `k` bang chuoi `PS2=OK RAW=1C ASCII=a`
-- phan keyboard PS/2 khong chi kich command; ky tu decode duoc nhu `a` cung di vao shell, echo qua UART, va neu chua co command thi tra `?`
-- shell tra loi lenh `i` bang thong tin boot hien tai (`BOOTLD`, `ENTRY`, `STATUS`)
-- shell tra loi lenh `m` bang memory dump ngan (`BI0`, `APP0`)
-- shell tra loi lenh `t` bang thong tin timer (`TIME=`)
-- shell tra loi lenh `r` bang self-test SRAM ngan (`RAM=OK`)
-- shell tra loi lenh `n` bang MMIO NPU-lite dot4 (`NPU=OK`)
-- shell tra loi lenh `p` bang custom instruction qua PCPI (`PCPI=OK`)
-- shell tra loi lenh `v` bang vector-16 accumulate (`V16=OK`)
-- shell tra loi lenh `x` bang matvec4 int8 (`MAT=OK`)
-- shell tra loi lenh `g` bang cach chay app `RVOS/32` trong SRAM
-- keyboard PS/2 co the kich lai it nhat mot lenh monitor, vi du phim `H` tra lai chuoi `CMDS:`
-- phim PS/2 `A` duoc echo vao shell path va hien `a` roi `?` de chung minh keyboard input di chung duong xu ly voi UART
-- reset xong monitor tu thu boot image mot lan truoc khi cho lenh tay
-- `LED0` thuc su toggle sau lenh UART
-- `SPI SCLK` co hoat dong trong luc test `b`
-- lenh `b` parse duoc `load_addr`, `size_bytes`, `entry_addr` tu header raw boot image `RVPC`
-- lenh `b` tu tinh checksum payload trong luc copy va chi `BOOT=OK` khi checksum hop le
-- smoke sim hien tai co chu y dung `load_addr = entry_addr = 0x1000_0020` de chung minh Boot ROM khong con hardcode `SRAM_BASE`
-- Boot ROM ghi `boot info block` vao `0x1000_0000 .. 0x1000_001F` gom `magic/load_addr/size/entry/checksum/status`
-- `boot info block[6:7]` duoc dung lam snapshot `last_ps2_raw/last_ps2_ascii` de debug keyboard
-- lenh `b` copy duoc payload vao SRAM theo thong tin trong header va lenh `g` jump duoc vao app `RVOS/32`
-- app `RVOS/32` tu doc `boot info block`, xac nhan `magic + entry_addr`, roi phat marker `I/G`, clear man hinh, in `RVOS/32`, va cho prompt `APP> `
-- trong app `RVOS/32`, lenh `n` tra `APPNPU=OK`, lenh `v` tra `APPMAT=OK`, va lenh `q` return ve monitor bang `GO=RET`
-- VGA text console giu lai banner/reply cua monitor va app `RVOS/32` trong `text_ram`
-- dong footer cua VGA hien truc tiep `LED`, `TIME`, `PS2`, `STAT`
-- `VGA HSYNC` co toggle
-
-De regenerate `bootrom.mem` ma khong can RISC-V GCC:
-
-```bat
-scripts\gen_bootrom.bat
-```
-
-## Build va nap Basys 3 tren Windows
-
-Sau khi smoke simulation da pass, day la duong di tiep theo de bring-up board that:
-
-1. Tao bitstream:
+### 3. Build for the board
 
 ```bat
 scripts\run_vivado_build.bat
 ```
 
-Neu muon build trong Vivado GUI va giu cua so mo sau khi xong, chay:
+Expected summary files:
 
-```tcl
-cd <duong-dan-repo>
-source scripts/run_vivado_build_gui.tcl
+- `build/build_status.txt`
+- `build/timing_summary_post_route.rpt`
+- `build/utilization_post_route.rpt`
+
+Expected bitstream:
+
+```text
+build\vivado\risc_v_computer.runs\impl_1\top_basys3.bit
 ```
 
-2. Nap FPGA qua JTAG:
+### 4. Program the Basys 3 board
 
 ```bat
 scripts\program_basys3.bat
 ```
 
-3. Sau khi nap xong, kiem tra:
-   - UART ra banner monitor o `115200 8N1`
-   - gui `i` de thay `BOOTLD=1 ENTRY=10000020 STATUS=00000001`
-   - gui `h` de xem help
-   - gui `l` de toggle `LED0`
-   - gui `n` de check MMIO NPU-lite
-   - gui `p` de check PCPI/custom instruction NPU-lite
-   - gui `v` de check vector-16 accumulate path va doi chieu MMIO/PCPI
-   - gui `x` de check matvec4 int8 tren NPU MMIO
-   - man hinh VGA hien text console, dong footer `STAT` = `00000001`
+### 5. Use the no-board demo if needed
 
-Log mac dinh:
+```bat
+scripts\run_offline_demo.bat
+```
 
-- `build\vivado_build.log`
-- `build\build_status.txt`
-- `build\program_basys3.log`
+That demo is presentation-friendly, but the main evidence should still be the
+Vivado simulation and build flow.
 
-Xem them checklist chi tiet trong [Board Bring-up](docs/BOARD_BRINGUP.md).
+## Verification Signals To Look For
 
-## Goi y trien khai theo tung moc
+The current regression flow checks for concrete signs of life, including:
 
-1. Bring-up `UART + LED + SRAM` truoc, bo qua SD/VGA/PS2.
-2. Them bootloader SPI-SD nhung chi doc raw sector, khong FAT32 o giai doan dau.
-3. Sau khi boot duoc binary vao RAM, moi lam `VGA text mode`.
-4. Sau cung moi hop nhat keyboard + monitor shell.
+- `RV32` UART banner
+- monitor help reply `CMDS:`
+- `LED=0`
+- `BOOT=OK`
+- `PS2=OK`
+- `RAM=OK`
+- `NPU=OK`
+- `PCPI=OK`
+- `V16=OK`
+- `MAT=OK`
+- jump into `RVOS/32` and return to monitor
 
-Neu chua co board that, hay coi behavioral simulation la "board ao" cua ban:
+The reconstructed UART transcript is saved to:
 
-1. khoa duoc UART/GPIO/VGA bang testbench
-2. xac nhan duoc monitor shell qua UART
-3. moi moc deu can co self-check trong simulation truoc khi nghi den phan cung that
+```text
+build/vivado_terminal_demo.txt
+```
 
-## Tai lieu
+## Why There Is Also a Zybo Repo
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Boot Flow](docs/BOOT_FLOW.md)
-- [Boot Image Format](docs/BOOT_IMAGE_FORMAT.md)
-- [Board Bring-up](docs/BOARD_BRINGUP.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Debug Guide](docs/DEBUG_GUIDE.md)
+This repository is the **Basys 3 / Artix-7 mini-computer track**.
 
-## Third-party
+The separate repository `RISC-V-computer-ZYBO` is a different direction:
+`Zynq PS + Linux + PL accelerators`. It is not the same board target and should
+not be read as a replacement for this repo.
 
-- `third_party/picorv32/picorv32.v` duoc lay tu repo chinh thuc `YosysHQ/picorv32`
-- License: xem `third_party/picorv32/LICENSE`
+## Useful Docs
+
+- [docs/ARCHITECTURE.md](/home/fanguoc2len/code/RISC-V-computer/docs/ARCHITECTURE.md)
+- [docs/BOOT_FLOW.md](/home/fanguoc2len/code/RISC-V-computer/docs/BOOT_FLOW.md)
+- [docs/BOARD_BRINGUP.md](/home/fanguoc2len/code/RISC-V-computer/docs/BOARD_BRINGUP.md)
+- [docs/DEBUG_GUIDE.md](/home/fanguoc2len/code/RISC-V-computer/docs/DEBUG_GUIDE.md)
+- [docs/ROADMAP.md](/home/fanguoc2len/code/RISC-V-computer/docs/ROADMAP.md)
+
+## Interview Summary
+
+If you need to explain this repo in one minute:
+
+> I built a small RISC-V computer on a Basys 3 Artix-7 FPGA using PicoRV32,
+> added memory-mapped peripherals, UART/SPI/PS2/VGA bring-up, a simple boot
+> flow, and a Vivado-based regression path so the design can be demonstrated
+> and debugged without depending only on hardware access.
