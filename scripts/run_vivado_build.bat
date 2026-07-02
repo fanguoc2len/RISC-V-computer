@@ -4,13 +4,7 @@ setlocal
 set "SCRIPT_DIR=%~dp0"
 set "REPO_DIR=%SCRIPT_DIR%.."
 
-if "%VIVADO_BIN%"=="" set "VIVADO_BIN=E:\AMDDesignTools\2025.2\Vivado\bin"
-
-if not exist "%VIVADO_BIN%\vivado.bat" (
-  echo ERROR: khong tim thay vivado.bat tai "%VIVADO_BIN%".
-  echo Hay set lai bien moi truong VIVADO_BIN neu Vivado nam o cho khac.
-  exit /b 1
-)
+call "%SCRIPT_DIR%resolve_vivado_bin.bat" || exit /b 1
 
 if not exist "%REPO_DIR%\build" mkdir "%REPO_DIR%\build"
 

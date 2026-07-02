@@ -97,7 +97,8 @@ launch_simulation
 Neu ban can demo de bao ve/do an va muon tranh bi bat be la "chi la web mock", hay uu tien chay thang Vivado/XSim:
 
 ```tcl
-source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_demo_gui.tcl
+cd <duong-dan-repo>
+source scripts/run_vivado_demo_gui.tcl
 ```
 
 Script nay chay RTL that trong Vivado, lan luot qua:
@@ -110,7 +111,8 @@ Script nay chay RTL that trong Vivado, lan luot qua:
 Neu ban muon xem no giong mot may tinh text-mode hon la chi ngoi nhin waveform, dung ban terminal transcript:
 
 ```tcl
-source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_terminal_demo_gui.tcl
+cd <duong-dan-repo>
+source scripts/run_vivado_terminal_demo_gui.tcl
 ```
 
 Script nay van chay RTL that trong Vivado voi `monitor_shell_tb`, nhung sau khi chay xong se reconstruct transcript UART va in thang ra Tcl console, dong thoi luu vao `build/vivado_terminal_demo.txt`.
@@ -126,7 +128,8 @@ scripts\run_offline_demo.bat
 Neu dang ngoi trong Vivado Tcl console va muon mo demo bang `source`, dung:
 
 ```tcl
-source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_offline_demo.tcl
+cd <duong-dan-repo>
+source scripts/run_offline_demo.tcl
 ```
 
 Bo nay se mo `demo/index.html` tren Windows va cho phep:
@@ -141,11 +144,12 @@ Luu y: day la host-side presentation demo, khong phai waveform/cycle-accurate si
 
 ## Chay smoke simulation tren Windows
 
-Vivado cua ban da duoc tim thay o:
+Tat ca batch script trong repo se uu tien tim Vivado theo thu tu:
 
-```text
-E:\AMDDesignTools\2025.2\Vivado\bin
-```
+1. `VIVADO_BIN`
+2. `%XILINX_VIVADO%\bin`
+3. `PATH`
+4. fallback local `E:\AMDDesignTools\2025.2\Vivado\bin`
 
 Co 2 cach:
 
@@ -267,7 +271,8 @@ scripts\run_vivado_build.bat
 Neu muon build trong Vivado GUI va giu cua so mo sau khi xong, chay:
 
 ```tcl
-source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_build_gui.tcl
+cd <duong-dan-repo>
+source scripts/run_vivado_build_gui.tcl
 ```
 
 2. Nap FPGA qua JTAG:

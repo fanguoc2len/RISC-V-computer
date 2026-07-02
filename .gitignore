@@ -10,6 +10,7 @@
 *.str
 *.xpr
 build/
+dfx_runtime.txt
 firmware/bootrom/build/
 firmware/bootrom/*.elf
 firmware/bootrom/*.bin

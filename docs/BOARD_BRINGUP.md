@@ -24,7 +24,8 @@ scripts\run_vivado_build.bat
 Neu dang mo Vivado GUI va muon giu cua so mo de xem report/nghia cua slack sau khi build xong, dung:
 
 ```tcl
-source E:/RISC-V-computer-main/RISC-V-computer-main/scripts/run_vivado_build_gui.tcl
+cd <duong-dan-repo>
+source scripts/run_vivado_build_gui.tcl
 ```
 
 Script nay se:

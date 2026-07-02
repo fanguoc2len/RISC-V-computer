@@ -23,6 +23,17 @@ struct boot_image_header {
 
 Payload nam ngay sau header, khong nen them parser phuc tap o milestone dau.
 
+Trong milestone mo phong hien tai, image duoc dat len storage raw theo kieu:
+
+- `sector 0`: header `32 bytes` + padding `0x00`
+- `sector 1+`: payload + padding `0x00`
+- moi sector khi doc qua SPI model duoc trinh dien thanh mot block `CMD17`-like:
+  - `6 bytes` command doc sector
+  - `1 byte` response `0x00`
+  - `0xFE` data token
+  - `512 bytes` du lieu
+  - `2 bytes` CRC bo qua
+
 Boot ROM chi can:
 
 1. doc header
@@ -31,6 +42,20 @@ Boot ROM chi can:
 4. copy payload vao RAM
 5. tinh lai `checksum`
 6. jump `entry_addr`
+
+Smoke sim hien tai trong repo co y dung image mau voi:
+
+- `load_addr = 0x10000020`
+- `entry_addr = 0x10000020`
+
+de chung minh Boot ROM that su dang doc cac field nay tu header, khong hardcode ve `SRAM_BASE`.
+
+Milestone local hien tai da di them mot buoc:
+
+- Boot ROM tu tinh checksum payload trong luc copy
+- so sanh voi field `checksum` trong header truoc khi bao `BOOT=OK`
+- Boot ROM ghi lai `magic/load_addr/size_bytes/entry_addr/checksum/status` vao `boot info block` o dau SRAM
+- app mau trong SRAM doc lai block nay de tu kiem tra no duoc boot dung image
 
 ## Checksum
 

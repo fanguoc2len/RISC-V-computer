@@ -90,6 +90,11 @@ Milestone mo phong hien tai da cham duoc buoc nay o muc don gian:
 
 - lenh `b` trong monitor shell doc header `RVPC` mau qua SPI model
 - ngay sau reset, monitor cung auto-thu boot image mot lan
+- SPI model hien tai tra du lieu theo block `CMD17`-like:
+  - host gui `6-byte read command`
+  - storage tra `R1=0x00`
+  - sau do tra `0xFE + 512 data bytes + 2 CRC bytes`
+- sector 0 chua header 32 byte va padding zero, sector 1+ chua payload va padding zero
 - Boot ROM parse duoc `load_addr`, `size_bytes`, `entry_addr` thay vi hardcode dia chi SRAM
 - Boot ROM tinh checksum payload trong luc copy va so sanh voi field `checksum` trong header
 - smoke sim co y dat `load_addr = entry_addr = 0x1000_0020` de chung minh logic parse header dang duoc dung that
