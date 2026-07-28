@@ -4,8 +4,7 @@ This repository is an embedded-computer project built around `PicoRV32` on the
 Digilent `Basys 3` board (`XC7A35T`, Artix-7). The goal is to grow a small but
 real FPGA computer step by step instead of jumping straight into a full SoC.
 
-At its current stage, the project already looks like a serious student bring-up
-platform rather than a toy RTL dump:
+At its current stage, the project is a practical FPGA bring-up platform with:
 
 - `PicoRV32` CPU with native memory interface
 - boot ROM + unified SRAM in BRAM
@@ -15,8 +14,8 @@ platform rather than a toy RTL dump:
 - small NPU-style MMIO and PCPI test paths
 - Vivado simulation flow, build scripts, and presentation demo
 
-This repo is the cleaned-up, portfolio-ready version of the original local
-Vivado project under `E:\riscvpicorv32\RISC_V_PicoRV32`.
+This repository consolidates the original Vivado project into a reproducible
+source, documentation, and verification tree.
 
 ## Hardware Target
 
@@ -36,8 +35,8 @@ The project is meant to show practical FPGA system work:
 - host-verifiable regression paths
 - documentation and scripted bring-up
 
-For internship or graduation-project review, that matters more than trying to
-look like a huge unfinished operating-system project.
+The emphasis is on repeatable system bring-up and a clearly defined
+architecture rather than an oversized, unfinished operating-system scope.
 
 ## Implemented Features
 
@@ -69,8 +68,8 @@ What is still intentionally modest:
 - no OS-level runtime
 - no cache / MMU / complex bus fabric
 
-That tradeoff is deliberate. The repo optimizes for believable progress,
-repeatable bring-up, and easy explanation in an interview.
+That tradeoff is deliberate. The repository prioritizes verifiable progress,
+repeatable bring-up, and clear technical communication.
 
 ## Memory Map
 
@@ -208,15 +207,15 @@ not be read as a replacement for this repo.
 
 ## Useful Docs
 
-- [docs/ARCHITECTURE.md](/home/fanguoc2len/code/RISC-V-computer/docs/ARCHITECTURE.md)
-- [docs/BOOT_FLOW.md](/home/fanguoc2len/code/RISC-V-computer/docs/BOOT_FLOW.md)
-- [docs/BOARD_BRINGUP.md](/home/fanguoc2len/code/RISC-V-computer/docs/BOARD_BRINGUP.md)
-- [docs/DEBUG_GUIDE.md](/home/fanguoc2len/code/RISC-V-computer/docs/DEBUG_GUIDE.md)
-- [docs/ROADMAP.md](/home/fanguoc2len/code/RISC-V-computer/docs/ROADMAP.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/BOOT_FLOW.md](docs/BOOT_FLOW.md)
+- [docs/BOARD_BRINGUP.md](docs/BOARD_BRINGUP.md)
+- [docs/DEBUG_GUIDE.md](docs/DEBUG_GUIDE.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
 
-## Interview Summary
+## Project Summary
 
-If you need to explain this repo in one minute:
+One-minute overview:
 
 > I built a small RISC-V computer on a Basys 3 Artix-7 FPGA using PicoRV32,
 > added memory-mapped peripherals, UART/SPI/PS2/VGA bring-up, a simple boot
