@@ -1,5 +1,7 @@
 # RISC-V Mini Computer on Basys 3 / Artix-7
 
+[![Open Source Checks](https://github.com/fanguoc2len/RISC-V-computer/actions/workflows/open-source-checks.yml/badge.svg)](https://github.com/fanguoc2len/RISC-V-computer/actions/workflows/open-source-checks.yml)
+
 This repository is an embedded-computer project built around `PicoRV32` on the
 Digilent `Basys 3` board (`XC7A35T`, Artix-7). The goal is to grow a small but
 real FPGA computer step by step instead of jumping straight into a full SoC.
@@ -196,6 +198,17 @@ The reconstructed UART transcript is saved to:
 ```text
 build/vivado_terminal_demo.txt
 ```
+
+## Automated Checks
+
+GitHub Actions runs two hardware-independent checks:
+
+- deterministic regeneration of `bootrom.mem` and `boot_image.hex`
+- Verilator structural lint of the Basys 3 top-level RTL hierarchy
+
+Vivado simulation, synthesis, implementation, and bitstream generation remain
+in the documented local scripts because the proprietary toolchain is not
+available on the standard GitHub-hosted runner.
 
 ## Why There Is Also a Zybo Repo
 
