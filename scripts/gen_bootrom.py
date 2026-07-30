@@ -3,6 +3,23 @@ import argparse
 import sys
 from pathlib import Path
 
+from boot_image import sum32_le_words
+from soc_config import (
+    GPIO_BASE,
+    NPU_BASE,
+    PS2_BASE,
+    SOC_CLK_FREQ_HZ,
+    SPI_BASE,
+    SRAM_BASE,
+    SRAM_SIZE_BYTES,
+    TIMER_BASE,
+    UART_BASE,
+    UART_BAUD,
+)
+
+DEFAULT_SOC_CLK_FREQ_HZ = SOC_CLK_FREQ_HZ
+DEFAULT_UART_BAUD = UART_BAUD
+
 
 REG = {
     "zero": 0,
@@ -61,20 +78,25 @@ def u32le_bytes(value: int) -> list[int]:
     return [(value >> shift) & 0xFF for shift in (0, 8, 16, 24)]
 
 
-def sum32_le_words(payload: list[int]) -> int:
-    payload_bytes = bytes(payload)
-    padded = payload_bytes + bytes((-len(payload_bytes)) % 4)
-    checksum = 0
-    for offset in range(0, len(padded), 4):
-        checksum = (checksum + int.from_bytes(padded[offset:offset + 4], "little")) & 0xFFFFFFFF
-    return checksum
-
-
 def words_to_le_bytes(words: list[int]) -> list[int]:
     payload: list[int] = []
     for word in words:
         payload.extend(u32le_bytes(word))
     return payload
+
+
+def uart_divisor(clk_freq_hz: int, uart_baud: int) -> int:
+    if clk_freq_hz <= 0:
+        raise ValueError("clk_freq_hz must be positive")
+    if uart_baud <= 0:
+        raise ValueError("uart_baud must be positive")
+
+    divisor = clk_freq_hz // uart_baud
+    if divisor <= 0:
+        raise ValueError(
+            f"UART baud {uart_baud} is too high for clock {clk_freq_hz}"
+        )
+    return divisor
 
 
 class Program:
@@ -670,15 +692,18 @@ def build_sample_app(
     return words_to_le_bytes(p.words)
 
 
-def build_boot_assets() -> tuple[list[int], list[int]]:
-    uart_base = 0x20000000
-    gpio_base = 0x20001000
-    timer_base = 0x20002000
-    spi_base = 0x20003000
-    ps2_base = 0x20004000
-    npu_base = 0x20005000
-    sram_base = 0x10000000
-    sram_bytes = 0x00010000
+def build_boot_assets(
+    clk_freq_hz: int = DEFAULT_SOC_CLK_FREQ_HZ,
+    uart_baud: int = DEFAULT_UART_BAUD,
+) -> tuple[list[int], list[int]]:
+    uart_base = UART_BASE
+    gpio_base = GPIO_BASE
+    timer_base = TIMER_BASE
+    spi_base = SPI_BASE
+    ps2_base = PS2_BASE
+    npu_base = NPU_BASE
+    sram_base = SRAM_BASE
+    sram_bytes = SRAM_SIZE_BYTES
     sample_load_addr = sram_base + 0x20
     sample_entry_addr = sample_load_addr
     boot_info_magic = 0x49425652
@@ -688,7 +713,7 @@ def build_boot_assets() -> tuple[list[int], list[int]]:
     boot_status_bad_size = 0x000000E3
     boot_status_bad_entry = 0x000000E4
     boot_status_bad_checksum = 0x000000E5
-    uart_div = 868
+    uart_div = uart_divisor(clk_freq_hz, uart_baud)
     ramtest_min_base = sram_base + 0x200
     ramtest_limit = sram_base + sram_bytes - 0x200
     npu_demo_vec_a = 0xFC03FE01
@@ -1389,12 +1414,24 @@ def main() -> None:
     parser.add_argument("--stdout", action="store_true", help="Write the generated memory image to stdout.")
     parser.add_argument("--output", type=Path, help="Explicit output path for bootrom.mem.")
     parser.add_argument("--boot-image-output", type=Path, help="Explicit output path for boot_image.hex.")
+    parser.add_argument(
+        "--clk-freq-hz",
+        type=int,
+        default=DEFAULT_SOC_CLK_FREQ_HZ,
+        help=f"SoC clock used to derive the UART divider (default: {DEFAULT_SOC_CLK_FREQ_HZ}).",
+    )
+    parser.add_argument(
+        "--uart-baud",
+        type=int,
+        default=DEFAULT_UART_BAUD,
+        help=f"UART baud used by the generated monitor (default: {DEFAULT_UART_BAUD}).",
+    )
     args = parser.parse_args()
 
     repo_dir = Path(__file__).resolve().parent.parent
     output_path = args.output or (repo_dir / "bootrom.mem")
     boot_image_path = args.boot_image_output or (repo_dir / "boot_image.hex")
-    words, boot_image = build_boot_assets()
+    words, boot_image = build_boot_assets(args.clk_freq_hz, args.uart_baud)
     contents = "".join(f"{word:08x}\n" for word in words)
     boot_image_contents = "".join(f"{byte:02x}\n" for byte in boot_image)
 

@@ -1,4 +1,6 @@
 .Xil/
+.codegraph/
+.ua/
 *.cache/
 *.gen/
 *.hw/

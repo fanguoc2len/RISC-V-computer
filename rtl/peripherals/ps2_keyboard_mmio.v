@@ -12,8 +12,8 @@ module ps2_keyboard_mmio (
     output wire [7:0]  debug_rx_data,
     output wire        debug_rx_valid
 );
-    reg [2:0] ps2_clk_sync;
-    reg [2:0] ps2_data_sync;
+    (* ASYNC_REG = "TRUE" *) reg [2:0] ps2_clk_sync;
+    (* ASYNC_REG = "TRUE" *) reg [2:0] ps2_data_sync;
     reg [10:0] shift_reg;
     reg [3:0] bit_count;
     reg [7:0] rx_data;

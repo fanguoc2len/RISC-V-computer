@@ -1,7 +1,9 @@
 `timescale 1ns / 1ps
 
 module monitor_shell_tb;
-    localparam integer CLK_FREQ_HZ = 100_000_000;
+    // This bench instantiates the SoC directly, so model the 50 MHz clock
+    // produced by top_basys3 rather than the 100 MHz board oscillator.
+    localparam integer CLK_FREQ_HZ = 50_000_000;
     localparam integer UART_BAUD = 115200;
     localparam integer UART_BIT_CLKS = CLK_FREQ_HZ / UART_BAUD;
     localparam integer PS2_HALF_CLKS = 200;
@@ -57,6 +59,9 @@ module monitor_shell_tb;
     reg [7:0] spi_shift_reg;
     reg [7:0] spi_image_mem [0:SPI_IMAGE_MAX_BYTES-1];
     reg spi_xfer_active;
+    // Keep cross-process scoreboard state visible to Verilator's timing
+    // coroutine; Vivado treats these directives as ordinary comments.
+    /* verilator public_flat_rw_on */
     reg banner_seen;
     reg help_reply_seen;
     reg led_zero_msg_seen;
@@ -83,6 +88,7 @@ module monitor_shell_tb;
     reg app_bye_seen;
     reg go_ret_seen;
     reg go_command_sent;
+    /* verilator public_off */
 
     wire uart_mon_tx_unused;
     wire [31:0] uart_mon_div_do;
@@ -124,7 +130,7 @@ module monitor_shell_tb;
 
             if (prompt_count < target_count) begin
                 $display("FAIL: Prompt count did not reach %0d within %0d cycles.", target_count, max_cycles);
-                $finish;
+                $fatal(1);
             end
         end
     endtask
@@ -277,7 +283,7 @@ module monitor_shell_tb;
         if (spi_image_mem[0] !== 8'h52 || spi_image_mem[1] !== 8'h56 ||
             spi_image_mem[2] !== 8'h50 || spi_image_mem[3] !== 8'h43) begin
             $display("FAIL: SPI image header was not loaded from boot_image.hex.");
-            $finish;
+            $fatal(1);
         end
 
         $display("Starting monitor shell simulation...");
@@ -360,93 +366,93 @@ module monitor_shell_tb;
 
         if (!help_reply_seen) begin
             $display("FAIL: Did not observe help reply after sending 'h'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!led_zero_msg_seen) begin
             $display("FAIL: Did not observe LED=0 reply after sending 'l'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!led_zero_state_seen) begin
             $display("FAIL: GPIO bit 0 did not reflect the LED toggle path.");
-            $finish;
+            $fatal(1);
         end
 
         if (!boot_ok_seen || boot_ok_count < 2) begin
             $display("FAIL: Did not observe BOOT=OK twice (autoboot + 'b'). Count=%0d.", boot_ok_count);
-            $finish;
+            $fatal(1);
         end
 
         if (!ps2_ok_seen) begin
             $display("FAIL: Did not observe PS2=OK reply after sending 'k'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!ps2_echo_seen) begin
             $display("FAIL: Did not observe PS/2 ASCII echo path for unsupported key 'a'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!ps2_ascii_seen) begin
             $display("FAIL: Did not observe PS/2 ASCII decode after sending 'k'.");
-            $finish;
+            $fatal(1);
         end
 
         if (help_reply_count < 2) begin
             $display("FAIL: Did not observe keyboard-driven help reply. Count=%0d.", help_reply_count);
-            $finish;
+            $fatal(1);
         end
 
         if (!info_reply_seen) begin
             $display("FAIL: Did not observe boot info reply after sending 'i'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!status_reply_seen) begin
             $display("FAIL: Did not observe boot status reply after sending 'i'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!mem_dump_seen) begin
             $display("FAIL: Did not observe memory dump reply after sending 'm'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!time_reply_seen) begin
             $display("FAIL: Did not observe timer reply after sending 't'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!ram_reply_seen) begin
             $display("FAIL: Did not observe SRAM self-test reply after sending 'r'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!npu_reply_seen) begin
             $display("FAIL: Did not observe MMIO NPU reply after sending 'n'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!pcpi_reply_seen) begin
             $display("FAIL: Did not observe PCPI NPU reply after sending 'p'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!vec16_reply_seen) begin
             $display("FAIL: Did not observe accumulated vec16 NPU reply after sending 'v'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!mat_reply_seen) begin
             $display("FAIL: Did not observe matvec4 NPU reply after sending 'x'.");
-            $finish;
+            $fatal(1);
         end
 
         if (dut.npu_i.result_reg !== NPU_MAT4_EXPECT0) begin
             $display("FAIL: MMIO NPU result register is 0x%08x instead of 0x%08x.",
                      dut.npu_i.result_reg, NPU_MAT4_EXPECT0);
-            $finish;
+            $fatal(1);
         end
 
         if (dut.npu_i.mat_res1_reg !== NPU_MAT4_EXPECT1 ||
@@ -454,12 +460,12 @@ module monitor_shell_tb;
             dut.npu_i.mat_res3_reg !== NPU_MAT4_EXPECT3) begin
             $display("FAIL: MATVEC result registers are wrong: R1=0x%08x R2=0x%08x R3=0x%08x.",
                      dut.npu_i.mat_res1_reg, dut.npu_i.mat_res2_reg, dut.npu_i.mat_res3_reg);
-            $finish;
+            $fatal(1);
         end
 
         if (debug_boot_status !== 32'h0000_0001) begin
             $display("FAIL: debug_boot_status is 0x%08x instead of 0x00000001.", debug_boot_status);
-            $finish;
+            $fatal(1);
         end
 
         if (dut.sram_i.mem[0] !== BOOT_INFO_MAGIC ||
@@ -472,71 +478,84 @@ module monitor_shell_tb;
             $display("      info[0]=0x%08x info[1]=0x%08x info[2]=0x%08x info[3]=0x%08x",
                      dut.sram_i.mem[0], dut.sram_i.mem[1], dut.sram_i.mem[2], dut.sram_i.mem[3]);
             $display("      info[4]=0x%08x info[5]=0x%08x", dut.sram_i.mem[4], dut.sram_i.mem[5]);
-            $finish;
+            $fatal(1);
         end
 
         if (dut.sram_i.mem[8] === 32'h00000000 || dut.sram_i.mem[9] === 32'h00000000) begin
             $display("FAIL: SRAM payload does not look populated after boot.");
             $display("      mem[8]=0x%08x mem[9]=0x%08x", dut.sram_i.mem[8], dut.sram_i.mem[9]);
-            $finish;
+            $fatal(1);
         end
 
         if (!app_info_seen) begin
             $display("FAIL: Did not observe SRAM app boot-info marker 'I' after sending 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_go_seen) begin
             $display("FAIL: Did not observe SRAM app UART marker after sending 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_banner_seen) begin
             $display("FAIL: Did not observe RVOS/32 app banner after sending 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_help_seen || app_help_count < 3) begin
             $display("FAIL: Did not observe app help text enough times (startup + UART + PS/2). Count=%0d.", app_help_count);
-            $finish;
+            $fatal(1);
         end
 
         if (!app_npu_ok_seen) begin
             $display("FAIL: Did not observe APPNPU=OK reply inside the SRAM app.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_mat_ok_seen) begin
             $display("FAIL: Did not observe APPMAT=OK reply inside the SRAM app.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_bye_seen) begin
             $display("FAIL: Did not observe APPBYE after sending 'q' inside the SRAM app.");
-            $finish;
+            $fatal(1);
         end
 
         if (!go_ret_seen) begin
             $display("FAIL: Did not observe GO=RET after the SRAM app returned.");
-            $finish;
+            $fatal(1);
         end
 
         if (gpio_out[3:0] !== 4'hA) begin
             $display("FAIL: SRAM app did not drive GPIO pattern 0xA after 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (spi_sclk_posedge_count < ((BOOT_HEADER_BYTES + dut.sram_i.mem[2]) * 8)) begin
             $display("FAIL: SPI SCLK toggled only %0d times; expected at least %0d for header + payload read.",
                      spi_sclk_posedge_count, (BOOT_HEADER_BYTES + dut.sram_i.mem[2]) * 8);
-            $finish;
+            $fatal(1);
+        end
+
+        // Inject the wrapper's one-cycle error indication to verify the SoC
+        // preserves it in debug_boot_status[31] until reset.
+        force dut.bus_error_event = 1'b1;
+        @(posedge clk);
+        #1;
+        release dut.bus_error_event;
+        @(posedge clk);
+        #1;
+        if (debug_boot_status !== 32'h8000_0001) begin
+            $display("FAIL: AXI/decode error was not latched in debug_boot_status[31].");
+            $fatal(1);
         end
 
         $display("PASS: monitor shell simulation completed.");
         $finish;
     end
 
-    always #5 clk = ~clk;
+    always #10 clk = ~clk;
 
     always @(posedge spi_sclk) begin
         if (!spi_cs_n) begin

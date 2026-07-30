@@ -2,7 +2,8 @@ module riscv_pc_soc #(
     parameter integer CLK_FREQ_HZ = 100_000_000,
     parameter integer UART_BAUD = 115200,
     parameter integer BOOT_ROM_WORDS = 4096,
-    parameter integer SRAM_WORDS = 16384
+    parameter integer SRAM_WORDS = 16384,
+    parameter integer USE_AXI = 1
 ) (
     input  wire        clk,
     input  wire        resetn,
@@ -50,6 +51,26 @@ module riscv_pc_soc #(
     wire [3:0]  mem_wstrb;
     wire [31:0] mem_rdata;
 
+    wire        axi_awvalid;
+    wire        axi_awready;
+    wire [31:0] axi_awaddr;
+    wire [2:0]  axi_awprot;
+    wire        axi_wvalid;
+    wire        axi_wready;
+    wire [31:0] axi_wdata;
+    wire [3:0]  axi_wstrb;
+    wire        axi_bvalid;
+    wire        axi_bready;
+    wire [1:0]  axi_bresp;
+    wire        axi_arvalid;
+    wire        axi_arready;
+    wire [31:0] axi_araddr;
+    wire [2:0]  axi_arprot;
+    wire        axi_rvalid;
+    wire        axi_rready;
+    wire [31:0] axi_rdata;
+    wire [1:0]  axi_rresp;
+
     wire [31:0] rom_rdata;
     wire [31:0] ram_rdata;
     wire [31:0] uart_rdata;
@@ -63,6 +84,8 @@ module riscv_pc_soc #(
     reg ram_ready;
     reg invalid_ready;
     reg [31:0] debug_boot_status_r;
+    reg debug_bus_error_r;
+    wire bus_error_event;
 
     // Keep address decode shallow: match fixed address bits instead of wide range compares.
     wire sel_rom   = mem_valid && (mem_addr[31:14] == BOOT_ROM_SEL);
@@ -74,6 +97,7 @@ module riscv_pc_soc #(
     wire sel_ps2   = mem_valid && (mem_addr[31:3]  == PS2_SEL);
     wire sel_npu   = mem_valid && (mem_addr[31:6]  == NPU_SEL);
     wire sel_none  = mem_valid && !(sel_rom || sel_ram || sel_uart || sel_gpio || sel_timer || sel_spi || sel_ps2 || sel_npu);
+    wire mem_error = sel_none;
 
     wire [31:0] uart_div_do;
     wire [31:0] uart_dat_do;
@@ -97,7 +121,13 @@ module riscv_pc_soc #(
     wire        pcpi_wait;
     wire        pcpi_ready;
 
-    assign debug_boot_status = debug_boot_status_r;
+    // Bit 31 is a sticky local-bus/AXI decode-error indication. PicoRV32 has
+    // no native bus-fault input, so the transaction completes while hardware
+    // keeps the error observable for bring-up and diagnostics.
+    assign debug_boot_status = {
+        debug_boot_status_r[31] | debug_bus_error_r,
+        debug_boot_status_r[30:0]
+    };
     assign uart_rdata = uart_div_sel ? uart_div_do : uart_dat_do;
 
     assign mem_ready = uart_ready || gpio_ready || timer_ready || spi_ready || ps2_ready || npu_ready || rom_ready || ram_ready || invalid_ready;
@@ -120,6 +150,7 @@ module riscv_pc_soc #(
             ram_ready <= 1'b0;
             invalid_ready <= 1'b0;
             debug_boot_status_r <= 32'h0000_0000;
+            debug_bus_error_r <= 1'b0;
             debug_uart_tx_char <= 8'h00;
             debug_uart_tx_valid <= 1'b0;
         end else begin
@@ -127,6 +158,10 @@ module riscv_pc_soc #(
             ram_ready <= mem_valid && !mem_ready && sel_ram;
             invalid_ready <= mem_valid && !mem_ready && sel_none;
             debug_uart_tx_valid <= uart_dat_sel && mem_valid && mem_wstrb[0] && !uart_dat_wait;
+
+            if (bus_error_event) begin
+                debug_bus_error_r <= 1'b1;
+            end
 
             if (mem_valid && !mem_ready && sel_ram && (mem_addr == BOOT_INFO_STATUS_ADDR)) begin
                 if (mem_wstrb[0]) debug_boot_status_r[7:0] <= mem_wdata[7:0];
@@ -141,37 +176,125 @@ module riscv_pc_soc #(
         end
     end
 
-    picorv32 #(
-        .PROGADDR_RESET   (BOOT_ROM_BASE),
-        .PROGADDR_IRQ     (BOOT_ROM_BASE),
-        .STACKADDR        (SRAM_BASE + SRAM_BYTES),
-        .ENABLE_MUL       (1),
-        .ENABLE_DIV       (1),
-        .BARREL_SHIFTER   (1),
-        .COMPRESSED_ISA   (1),
-        .ENABLE_COUNTERS  (1),
-        .ENABLE_PCPI      (1),
-        .ENABLE_IRQ       (0)
-    ) cpu_i (
-        .clk        (clk),
-        .resetn     (resetn),
-        .mem_valid  (mem_valid),
-        .mem_instr  (mem_instr),
-        .mem_ready  (mem_ready),
-        .mem_addr   (mem_addr),
-        .mem_wdata  (mem_wdata),
-        .mem_wstrb  (mem_wstrb),
-        .mem_rdata  (mem_rdata),
-        .pcpi_valid (pcpi_valid),
-        .pcpi_insn  (pcpi_insn),
-        .pcpi_rs1   (pcpi_rs1),
-        .pcpi_rs2   (pcpi_rs2),
-        .pcpi_wr    (pcpi_wr),
-        .pcpi_rd    (pcpi_rd),
-        .pcpi_wait  (pcpi_wait),
-        .pcpi_ready (pcpi_ready),
-        .irq        (32'h0000_0000)
-    );
+    generate
+        if (USE_AXI != 0) begin : gen_axi_cpu
+            wire trap_unused;
+            wire [31:0] eoi_unused;
+
+            picorv32_axi4lite #(
+                .PROGADDR_RESET  (BOOT_ROM_BASE),
+                .PROGADDR_IRQ    (BOOT_ROM_BASE),
+                .STACKADDR       (SRAM_BASE + SRAM_BYTES),
+                .ENABLE_MUL      (1),
+                .ENABLE_DIV      (1),
+                .BARREL_SHIFTER  (1),
+                .COMPRESSED_ISA  (1),
+                .ENABLE_COUNTERS (1),
+                .ENABLE_PCPI     (1),
+                .ENABLE_IRQ      (0)
+            ) cpu_i (
+                .clk           (clk),
+                .resetn        (resetn),
+                .trap          (trap_unused),
+                .axi_error     (bus_error_event),
+                .m_axi_awvalid (axi_awvalid),
+                .m_axi_awready (axi_awready),
+                .m_axi_awaddr  (axi_awaddr),
+                .m_axi_awprot  (axi_awprot),
+                .m_axi_wvalid  (axi_wvalid),
+                .m_axi_wready  (axi_wready),
+                .m_axi_wdata   (axi_wdata),
+                .m_axi_wstrb   (axi_wstrb),
+                .m_axi_bvalid  (axi_bvalid),
+                .m_axi_bready  (axi_bready),
+                .m_axi_bresp   (axi_bresp),
+                .m_axi_arvalid (axi_arvalid),
+                .m_axi_arready (axi_arready),
+                .m_axi_araddr  (axi_araddr),
+                .m_axi_arprot  (axi_arprot),
+                .m_axi_rvalid  (axi_rvalid),
+                .m_axi_rready  (axi_rready),
+                .m_axi_rdata   (axi_rdata),
+                .m_axi_rresp   (axi_rresp),
+                .pcpi_valid    (pcpi_valid),
+                .pcpi_insn     (pcpi_insn),
+                .pcpi_rs1      (pcpi_rs1),
+                .pcpi_rs2      (pcpi_rs2),
+                .pcpi_wr       (pcpi_wr),
+                .pcpi_rd       (pcpi_rd),
+                .pcpi_wait     (pcpi_wait),
+                .pcpi_ready    (pcpi_ready),
+                .irq           (32'h0000_0000),
+                .eoi           (eoi_unused)
+            );
+
+            axi4lite_to_native axi_slave_i (
+                .clk           (clk),
+                .resetn        (resetn),
+                .s_axi_awvalid (axi_awvalid),
+                .s_axi_awready (axi_awready),
+                .s_axi_awaddr  (axi_awaddr),
+                .s_axi_awprot  (axi_awprot),
+                .s_axi_wvalid  (axi_wvalid),
+                .s_axi_wready  (axi_wready),
+                .s_axi_wdata   (axi_wdata),
+                .s_axi_wstrb   (axi_wstrb),
+                .s_axi_bvalid  (axi_bvalid),
+                .s_axi_bready  (axi_bready),
+                .s_axi_bresp   (axi_bresp),
+                .s_axi_arvalid (axi_arvalid),
+                .s_axi_arready (axi_arready),
+                .s_axi_araddr  (axi_araddr),
+                .s_axi_arprot  (axi_arprot),
+                .s_axi_rvalid  (axi_rvalid),
+                .s_axi_rready  (axi_rready),
+                .s_axi_rdata   (axi_rdata),
+                .s_axi_rresp   (axi_rresp),
+                .mem_valid     (mem_valid),
+                .mem_instr     (mem_instr),
+                .mem_ready     (mem_ready),
+                .mem_addr      (mem_addr),
+                .mem_wdata     (mem_wdata),
+                .mem_wstrb     (mem_wstrb),
+                .mem_rdata     (mem_rdata),
+                .mem_error     (mem_error)
+            );
+        end else begin : gen_native_cpu
+            assign bus_error_event = mem_valid && mem_ready && mem_error;
+
+            picorv32 #(
+                .PROGADDR_RESET   (BOOT_ROM_BASE),
+                .PROGADDR_IRQ     (BOOT_ROM_BASE),
+                .STACKADDR        (SRAM_BASE + SRAM_BYTES),
+                .ENABLE_MUL       (1),
+                .ENABLE_DIV       (1),
+                .BARREL_SHIFTER   (1),
+                .COMPRESSED_ISA   (1),
+                .ENABLE_COUNTERS  (1),
+                .ENABLE_PCPI      (1),
+                .ENABLE_IRQ       (0)
+            ) cpu_i (
+                .clk        (clk),
+                .resetn     (resetn),
+                .mem_valid  (mem_valid),
+                .mem_instr  (mem_instr),
+                .mem_ready  (mem_ready),
+                .mem_addr   (mem_addr),
+                .mem_wdata  (mem_wdata),
+                .mem_wstrb  (mem_wstrb),
+                .mem_rdata  (mem_rdata),
+                .pcpi_valid (pcpi_valid),
+                .pcpi_insn  (pcpi_insn),
+                .pcpi_rs1   (pcpi_rs1),
+                .pcpi_rs2   (pcpi_rs2),
+                .pcpi_wr    (pcpi_wr),
+                .pcpi_rd    (pcpi_rd),
+                .pcpi_wait  (pcpi_wait),
+                .pcpi_ready (pcpi_ready),
+                .irq        (32'h0000_0000)
+            );
+        end
+    endgenerate
 
     boot_rom #(
         .WORDS   (BOOT_ROM_WORDS),

@@ -5,24 +5,34 @@
 Do an nay can ra duoc mot he thong chay that tren FPGA, vi vay kien truc nen uu tien:
 
 - it clock domain
-- it bus protocol
+- mot bus protocol nhe, de kiem chung
 - debug duoc bang UART va LED
 - mo rong duoc tung khoi
 
-Thay vi bat dau bang AXI/Wishbone day du, giai doan 1 su dung **native memory interface** cua PicoRV32. Day la lua chon rat hop ly cho do an sinh vien vi:
+He thong hien tai su dung **AXI4-Lite 32-bit** giua PicoRV32 va address
+decoder. Cau hinh mac dinh la `USE_AXI=1`; co the dat `USE_AXI=0` de quay lai
+native memory interface khi can so sanh timing hoac debug.
+
+AXI4-Lite phu hop hon AXI4 day du trong giai doan nay vi:
 
 - chi co 1 master la CPU
-- memory map rat de debug
-- co the chen peripheral bang decoder don gian
-- de chuyen sang bus chuan hon sau nay neu can
+- moi lenh/load/store la mot transfer 32-bit, khong can burst
+- co handshake va backpressure doc lap cho tung channel
+- de ket noi voi AXI interconnect/IP cua Vivado sau nay
+- van giu duoc memory map va peripheral native hien co qua bridge
 
 ## 2. So do khoi
 
 ```text
                 +----------------------+
 clk/reset ----->|      PicoRV32        |
-                | native mem interface |
+                | AXI4-Lite master     |
                 +----------+-----------+
+                           |
+                 +---------+----------+
+                 | AXI4-Lite -> native|
+                 | single outstanding |
+                 +---------+----------+
                            |
                   +--------+--------+
                   | address decoder |
@@ -107,10 +117,13 @@ Tranh FAT32 trong milestone dau. Giai phap gon va thuc te:
 
 ## 5. Clocking
 
-- `sys_clk = 100 MHz` (Basys 3)
-- `pixel_clk = 25 MHz` tao bang chia 4 tu `sys_clk`
+- `board_clk = 100 MHz` tu oscillator cua Basys 3
+- `soc_clk = 50 MHz` tao bang chia 2, dung cho CPU, AXI, RAM va peripheral
+- `pixel_clk = 25 MHz` tao bang chia 4, dung cho VGA
 
-Neu text mode va CPU deu chay on o 100 MHz thi chua can PLL/MMCM ngay.
+Hai clock chia duoc khai bao bang `create_generated_clock` trong XDC. Muc
+50 MHz giup datapath NPU/PCPI dat timing tren `xc7a35t-1`; tham so UART cung
+duoc tinh theo 50 MHz.
 
 ## 6. Boot philosophy
 
@@ -128,7 +141,7 @@ Dieu nay giong mot personal computer toi gian hon la viec hard-code mot program 
 
 Nhung huong sau nghe hay nhung rat de qua tai cho do an 6 thang:
 
-- AXI crossbar day du
+- AXI4 crossbar nhieu master/slave, burst va cache day du
 - DDR controller tu viet
 - FAT32 + file browser + shell day du ngay tu dau
 - framebuffer VGA do hoa lon

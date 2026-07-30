@@ -1,0 +1,142 @@
+name: Open Source Checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generated-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Check Python tools
+        run: |
+          python3 -m py_compile \
+            scripts/boot_image.py \
+            scripts/soc_config.py \
+            scripts/check_soc_config.py \
+            scripts/check_boot_image.py \
+            scripts/test_boot_image.py \
+            scripts/gen_bootrom.py \
+            scripts/gen_raw_boot_image.py \
+            scripts/gen_offline_demo_data.py
+
+      - name: Verify shared SoC configuration
+        run: python3 scripts/check_soc_config.py
+
+      - name: Test and validate RVPC boot images
+        run: |
+          python3 scripts/test_boot_image.py
+          python3 scripts/check_boot_image.py
+
+      - name: Verify generated boot assets
+        run: |
+          python3 scripts/gen_bootrom.py \
+            --output /tmp/bootrom.mem \
+            --boot-image-output /tmp/boot_image.hex
+          cmp bootrom.mem /tmp/bootrom.mem
+          cmp boot_image.hex /tmp/boot_image.hex
+
+  rtl-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Verilator
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes verilator
+
+      - name: Lint top-level RTL
+        run: |
+          verilator \
+            --lint-only \
+            --timing \
+            -Wno-PINMISSING \
+            -Wno-WIDTHTRUNC \
+            -Wno-WIDTHEXPAND \
+            --top-module top_basys3 \
+            third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
+            rtl/memory/*.v \
+            rtl/peripherals/*.v \
+            rtl/soc/*.v \
+            rtl/top/*.v \
+            rtl/video/*.v
+
+      - name: Test AXI4-Lite bridge
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            --top-module axi4lite_to_native_tb \
+            rtl/bus/axi4lite_to_native.v \
+            tb/axi4lite_to_native_tb.v \
+            -Mdir /tmp/obj_axi_bridge
+          /tmp/obj_axi_bridge/Vaxi4lite_to_native_tb
+
+      - name: Test timer MMIO
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-TIMESCALEMOD \
+            --top-module timer_mmio_tb \
+            rtl/peripherals/timer_mmio.v \
+            tb/timer_mmio_tb.v \
+            -Mdir /tmp/obj_timer_mmio
+          /tmp/obj_timer_mmio/Vtimer_mmio_tb
+
+      - name: Test monitor shell end to end
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-PINMISSING \
+            -Wno-WIDTHTRUNC \
+            -Wno-WIDTHEXPAND \
+            --top-module monitor_shell_tb \
+            third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
+            rtl/memory/*.v \
+            rtl/peripherals/*.v \
+            rtl/soc/*.v \
+            tb/monitor_shell_tb.v \
+            -Mdir /tmp/obj_monitor_shell
+          /tmp/obj_monitor_shell/Vmonitor_shell_tb
+
+      - name: Test Basys 3 top level end to end
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-PINMISSING \
+            -Wno-WIDTHTRUNC \
+            -Wno-WIDTHEXPAND \
+            --top-module top_basys3_tb \
+            third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
+            rtl/memory/*.v \
+            rtl/peripherals/*.v \
+            rtl/soc/*.v \
+            rtl/top/*.v \
+            rtl/video/*.v \
+            tb/top_basys3_tb.v \
+            -Mdir /tmp/obj_top_basys3
+          /tmp/obj_top_basys3/Vtop_basys3_tb

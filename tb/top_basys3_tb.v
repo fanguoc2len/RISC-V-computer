@@ -2,6 +2,7 @@
 
 module top_basys3_tb;
     localparam integer CLK_FREQ_HZ = 100_000_000;
+    localparam integer SOC_CLK_FREQ_HZ = CLK_FREQ_HZ / 2;
     localparam integer UART_BAUD = 115200;
     localparam integer UART_BIT_CLKS = CLK_FREQ_HZ / UART_BAUD;
     localparam integer PS2_HALF_CLKS = 200;
@@ -64,6 +65,9 @@ module top_basys3_tb;
     reg [7:0] spi_shift_reg;
     reg [7:0] spi_image_mem [0:SPI_IMAGE_MAX_BYTES-1];
     reg spi_xfer_active;
+    // Keep cross-process scoreboard state visible to Verilator's timing
+    // coroutine; Vivado treats these directives as ordinary comments.
+    /* verilator public_flat_rw_on */
     reg banner_seen;
     reg help_reply_seen;
     reg led_zero_msg_seen;
@@ -87,6 +91,7 @@ module top_basys3_tb;
     reg app_npu_ok_seen;
     reg app_mat_ok_seen;
     reg go_command_sent;
+    /* verilator public_off */
     reg console_banner_seen;
     reg console_help_seen;
     reg console_prompt_seen;
@@ -133,7 +138,7 @@ module top_basys3_tb;
 
             if (prompt_count < target_count) begin
                 $display("FAIL: Prompt count did not reach %0d within %0d cycles.", target_count, max_cycles);
-                $finish;
+                $fatal(1);
             end
         end
     endtask
@@ -286,7 +291,7 @@ module top_basys3_tb;
         if (spi_image_mem[0] !== 8'h52 || spi_image_mem[1] !== 8'h56 ||
             spi_image_mem[2] !== 8'h50 || spi_image_mem[3] !== 8'h43) begin
             $display("FAIL: SPI image header was not loaded from boot_image.hex.");
-            $finish;
+            $fatal(1);
         end
 
         $display("Starting top_basys3 smoke simulation...");
@@ -366,88 +371,88 @@ module top_basys3_tb;
 
         if (!help_reply_seen) begin
             $display("FAIL: Did not observe help reply after sending 'h'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!led_zero_msg_seen) begin
             $display("FAIL: Did not observe LED=0 reply after sending 'l'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!boot_ok_seen || boot_ok_count < 2) begin
             $display("FAIL: Did not observe BOOT=OK twice (autoboot + 'b'). Count=%0d.", boot_ok_count);
-            $finish;
+            $fatal(1);
         end
 
         if (!ps2_ok_seen) begin
             $display("FAIL: Did not observe PS2=OK reply after sending 'k'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!ps2_echo_seen) begin
             $display("FAIL: Did not observe PS/2 ASCII echo path for unsupported key 'a'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!ps2_ascii_seen) begin
             $display("FAIL: Did not observe PS/2 ASCII decode after sending 'k'.");
-            $finish;
+            $fatal(1);
         end
 
         if (help_reply_count < 2) begin
             $display("FAIL: Did not observe keyboard-driven help reply. Count=%0d.", help_reply_count);
-            $finish;
+            $fatal(1);
         end
 
         if (!info_reply_seen) begin
             $display("FAIL: Did not observe boot info reply after sending 'i'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!status_reply_seen) begin
             $display("FAIL: Did not observe boot status reply after sending 'i'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!mem_dump_seen) begin
             $display("FAIL: Did not observe memory dump reply after sending 'm'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!time_reply_seen) begin
             $display("FAIL: Did not observe timer reply after sending 't'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!ram_reply_seen) begin
             $display("FAIL: Did not observe SRAM self-test reply after sending 'r'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!npu_reply_seen) begin
             $display("FAIL: Did not observe MMIO NPU reply after sending 'n'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!pcpi_reply_seen) begin
             $display("FAIL: Did not observe PCPI NPU reply after sending 'p'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!vec16_reply_seen) begin
             $display("FAIL: Did not observe accumulated vec16 NPU reply after sending 'v'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!mat_reply_seen) begin
             $display("FAIL: Did not observe matvec4 NPU reply after sending 'x'.");
-            $finish;
+            $fatal(1);
         end
 
         if (dut.soc_i.npu_i.result_reg !== NPU_MAT4_EXPECT0) begin
             $display("FAIL: MMIO NPU result register is 0x%08x instead of 0x%08x.",
                      dut.soc_i.npu_i.result_reg, NPU_MAT4_EXPECT0);
-            $finish;
+            $fatal(1);
         end
 
         if (dut.soc_i.npu_i.mat_res1_reg !== NPU_MAT4_EXPECT1 ||
@@ -455,12 +460,12 @@ module top_basys3_tb;
             dut.soc_i.npu_i.mat_res3_reg !== NPU_MAT4_EXPECT3) begin
             $display("FAIL: MATVEC result registers are wrong: R1=0x%08x R2=0x%08x R3=0x%08x.",
                      dut.soc_i.npu_i.mat_res1_reg, dut.soc_i.npu_i.mat_res2_reg, dut.soc_i.npu_i.mat_res3_reg);
-            $finish;
+            $fatal(1);
         end
 
         if (led[0] !== 1'b0) begin
             $display("FAIL: LED0 did not toggle low after 'l' command.");
-            $finish;
+            $fatal(1);
         end
 
         if (dut.soc_i.sram_i.mem[0] !== BOOT_INFO_MAGIC ||
@@ -475,60 +480,60 @@ module top_basys3_tb;
                      dut.soc_i.sram_i.mem[2], dut.soc_i.sram_i.mem[3]);
             $display("      info[4]=0x%08x info[5]=0x%08x",
                      dut.soc_i.sram_i.mem[4], dut.soc_i.sram_i.mem[5]);
-            $finish;
+            $fatal(1);
         end
 
         if (dut.soc_i.sram_i.mem[8] === 32'h00000000 || dut.soc_i.sram_i.mem[9] === 32'h00000000) begin
             $display("FAIL: SRAM payload does not look populated after boot.");
             $display("      mem[8]=0x%08x mem[9]=0x%08x",
                      dut.soc_i.sram_i.mem[8], dut.soc_i.sram_i.mem[9]);
-            $finish;
+            $fatal(1);
         end
 
         if (!app_info_seen) begin
             $display("FAIL: Did not observe SRAM app boot-info marker 'I' after sending 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_go_seen) begin
             $display("FAIL: Did not observe SRAM app UART marker after sending 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_banner_seen) begin
             $display("FAIL: Did not observe RVOS/32 app banner after sending 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_help_seen || app_help_count < 3) begin
             $display("FAIL: Did not observe app help text enough times (startup + UART + PS/2). Count=%0d.", app_help_count);
-            $finish;
+            $fatal(1);
         end
 
         if (!app_npu_ok_seen) begin
             $display("FAIL: Did not observe APPNPU=OK reply inside the SRAM app.");
-            $finish;
+            $fatal(1);
         end
 
         if (!app_mat_ok_seen) begin
             $display("FAIL: Did not observe APPMAT=OK reply inside the SRAM app.");
-            $finish;
+            $fatal(1);
         end
 
         if (led[3:0] !== 4'hA) begin
             $display("FAIL: SRAM app did not drive LED pattern 0xA after 'g'.");
-            $finish;
+            $fatal(1);
         end
 
         if (spi_sclk_posedge_count < ((BOOT_HEADER_BYTES + dut.soc_i.sram_i.mem[2]) * 8)) begin
             $display("FAIL: SPI SCLK toggled only %0d times; expected at least %0d for header + payload read.",
                      spi_sclk_posedge_count, (BOOT_HEADER_BYTES + dut.soc_i.sram_i.mem[2]) * 8);
-            $finish;
+            $fatal(1);
         end
 
         if (hsync_toggle_count == 0) begin
             $display("FAIL: VGA HSYNC never toggled.");
-            $finish;
+            $fatal(1);
         end
 
         for (screen_scan_idx = 0; screen_scan_idx <= (TEXT_DEPTH - 7); screen_scan_idx = screen_scan_idx + 1) begin
@@ -595,27 +600,36 @@ module top_basys3_tb;
 
         if (!console_banner_seen) begin
             $display("FAIL: VGA text console did not retain the RVOS/32 app banner.");
-            $finish;
+            $fatal(1);
         end
 
         if (!console_help_seen) begin
             $display("FAIL: VGA text console did not retain the app help line.");
-            $finish;
+            $fatal(1);
         end
 
         if (!console_prompt_seen) begin
             $display("FAIL: VGA text console did not retain the APP> prompt.");
-            $finish;
+            $fatal(1);
         end
 
         if (!console_mat_seen) begin
             $display("FAIL: VGA text console did not retain the APPMAT=OK reply.");
-            $finish;
+            $fatal(1);
         end
 
         if (!console_mat_r3_seen) begin
             $display("FAIL: VGA text console did not retain the tail of the app MAT result line (R3=000000E2).");
-            $finish;
+            $fatal(1);
+        end
+
+        if (dut.soc_i.uart_i.cfg_divider !== (SOC_CLK_FREQ_HZ / UART_BAUD)) begin
+            $display(
+                "FAIL: UART divider is %0d instead of %0d for the 50 MHz SoC clock.",
+                dut.soc_i.uart_i.cfg_divider,
+                SOC_CLK_FREQ_HZ / UART_BAUD
+            );
+            $fatal(1);
         end
 
         $display("PASS: smoke simulation completed.");

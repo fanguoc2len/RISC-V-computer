@@ -3,6 +3,16 @@
 
 #include <stdint.h>
 
+#ifndef SOC_CLK_FREQ_HZ
+#define SOC_CLK_FREQ_HZ  50000000u
+#endif
+
+#ifndef UART_BAUD
+#define UART_BAUD        115200u
+#endif
+
+#define UART_DEFAULT_DIV (SOC_CLK_FREQ_HZ / UART_BAUD)
+
 #define SRAM_BASE        0x10000000u
 #define SRAM_SIZE_BYTES  0x00010000u
 

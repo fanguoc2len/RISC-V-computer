@@ -2,7 +2,7 @@
 
 ## Current status
 
-Tinh den 2026-03-31, nhanh hien tai da co:
+Tinh den 2026-07-31, nhanh hien tai da co:
 
 - smoke simulation pass end-to-end tren `top_basys3_tb`
 - monitor shell qua UART voi cac lenh `h c l b k i m t r n p v x g`
@@ -18,6 +18,19 @@ Tinh den 2026-03-31, nhanh hien tai da co:
 - co path matvec4 int8 (`x`) de vuot khoi muc demo dot4 don le
 - co `monitor_shell_tb` de iterate nhanh monitor shell ma khong can full top-level VGA smoke sim
 - app `RVOS/32` trong SRAM chay duoc, co marker `I/G`, co prompt `APP> `, va co nhom lenh rieng `h c i l t n v q`
+- CPU dung duong AXI4-Lite mac dinh, co native fallback va DECERR observability
+- CI open-source kiem tra config drift, boot image, AXI bridge, timer va hai regression end-to-end
+- Vivado 2025.2 da tao bitstream voi setup/hold slack duong va DRC khong co error
+
+## Trang thai cac phase
+
+- Phase 1: hoan thanh va da synthesize/implement/tao bitstream.
+- Phase 2: hoan thanh duong raw-image trong mo phong (header/checksum/load/jump);
+  viec xac nhan voi the SD vat ly va filesystem van la nang cap rieng.
+- Phase 3: hoan thanh VGA timing, text console va footer.
+- Phase 4: hoan thanh PS/2 Set 2 cho nhom phim/lenh demo.
+- Phase 5: hoan thanh monitor, SRAM app, RAM self-test va NPU test paths.
+- Phase 6: chua hoan thanh; day la backlog tuy chon, khong phai release claim.
 
 ## Phase 1 - Nen toi thieu chay duoc
 
@@ -97,6 +110,10 @@ Chi lam neu con thoi gian:
 - text VRAM dep hon
 - simple file system
 - game / calculator / text editor sieu don gian
+
+IRQ timer peripheral da co thanh ghi compare/pending va duoc unit-test, nhung
+PicoRV32 van de `ENABLE_IRQ=0`. Chi bat IRQ sau khi co vector, save/restore
+register, clear source va `retirq`; bat truc tiep luc nay se lam sai boot flow.
 
 ## Uu tien quan trong
 
