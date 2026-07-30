@@ -68,6 +68,8 @@ and returns with `retirq`; details are in `INTERRUPTS.md`.
 
 - dat tai `0x1000_0000`
 - kich thuoc de xuat giai doan dau: `64 KB`
+- noi dung sau power-up khong duoc software xem la gia tri khoi tao; bootloader
+  phai ghi metadata, payload va scratch word truoc khi doc
 - dung cho:
   - stack
   - data
@@ -75,6 +77,11 @@ and returns with `retirq`; details are in `INTERRUPTS.md`.
   - sau nay co the tach them vung text VRAM neu can
 
 Khong nen lam framebuffer do hoa full-color o giai doan dau, vi se ton rat nhieu BRAM. Thay vao do, VGA nen di theo huong **text mode**.
+
+Vong lap zero-fill SRAM va space-fill text RAM chi duoc bat trong RTL
+simulation. Khi synthesis, SRAM duoc suy dien thanh block RAM khong phu thuoc
+power-up value; text console tu xoa toan bo RAM bang `clear_active` sau reset.
+Boot ROM van nap `bootrom.mem` trong ca simulation va synthesis.
 
 ## 4. I/O strategy
 

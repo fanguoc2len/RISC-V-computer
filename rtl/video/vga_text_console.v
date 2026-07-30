@@ -77,11 +77,15 @@ module vga_text_console (
     assign hsync = hsync_d;
     assign vsync = vsync_d;
 
+`ifndef SYNTHESIS
+    // Hardware clears the complete console through clear_active after reset.
+    // This initialization only avoids transient X values in RTL simulation.
     initial begin
         for (init_idx = 0; init_idx < TEXT_DEPTH; init_idx = init_idx + 1) begin
             text_ram[init_idx] = 8'h20;
         end
     end
+`endif
 
     vga_timing_640x480 timing_i (
         .clk_pix (clk_pix),

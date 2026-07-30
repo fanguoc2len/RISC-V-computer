@@ -60,10 +60,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Verilator
+      - name: Install open-source RTL tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes verilator
+          sudo apt-get install --yes verilator yosys
 
       - name: Lint top-level RTL
         run: |
@@ -81,6 +81,9 @@ jobs:
             rtl/soc/*.v \
             rtl/top/*.v \
             rtl/video/*.v
+
+      - name: Synthesize for Xilinx 7-series with Yosys
+        run: bash scripts/run_yosys_check.sh
 
       - name: Test AXI4-Lite bridge
         run: |

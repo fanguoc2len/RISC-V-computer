@@ -10,13 +10,18 @@ module unified_sram #(
     localparam integer ADDR_WIDTH = $clog2(WORDS);
 
     reg [31:0] mem [0:WORDS-1];
+
+`ifndef SYNTHESIS
     integer i;
 
+    // Keep simulation deterministic without forcing a power-up value onto
+    // inferred FPGA block RAM. Boot software writes every location it uses.
     initial begin
         for (i = 0; i < WORDS; i = i + 1) begin
             mem[i] = 32'h00000000;
         end
     end
+`endif
 
     always @(posedge clk) begin
         rdata <= mem[addr[ADDR_WIDTH+1:2]];

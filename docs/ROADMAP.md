@@ -19,7 +19,8 @@ Tinh den 2026-07-31, nhanh hien tai da co:
 - co `monitor_shell_tb` de iterate nhanh monitor shell ma khong can full top-level VGA smoke sim
 - app `RVOS/32` trong SRAM chay duoc, co marker `I/G`, co prompt `APP> `, va co nhom lenh rieng `h c i l t n v q`
 - CPU dung duong AXI4-Lite mac dinh, co native fallback va DECERR observability
-- CI open-source kiem tra config drift, boot image, AXI bridge, timer va hai regression end-to-end
+- CI open-source kiem tra config drift, boot image, full-top Yosys synthesis,
+  AXI bridge, timer va hai regression end-to-end
 - Vivado 2025.2 da tao bitstream voi setup/hold slack duong va DRC khong co error
 - timer IRQ3 da co vector `0x10`, save/restore q2/q3, EOI counter va regression end-to-end
 

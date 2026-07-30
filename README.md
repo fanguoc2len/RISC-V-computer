@@ -221,6 +221,7 @@ GitHub Actions runs hardware-independent checks for:
 - deterministic regeneration of `bootrom.mem` and `boot_image.hex`
 - RVPC header/range/checksum validation, including corrupted-payload rejection
 - Verilator structural lint of the Basys 3 top-level RTL hierarchy
+- Yosys synthesis of the complete top level for the Xilinx 7-series family
 - AXI4-Lite bridge protocol behavior under channel and response backpressure
 - timer MMIO counter/byte-strobe/compare/IRQ/EOI-count/W1C behavior
 - monitor-shell and full Basys 3 top-level end-to-end regressions
@@ -229,6 +230,12 @@ GitHub Actions runs hardware-independent checks for:
 Vivado simulation, synthesis, implementation, and bitstream generation remain
 in the documented local scripts because the proprietary toolchain is not
 available on the standard GitHub-hosted runner.
+
+Run the portable synthesis check locally with:
+
+```bash
+bash scripts/run_yosys_check.sh
+```
 
 ## Why There Is Also a Zybo Repo
 
