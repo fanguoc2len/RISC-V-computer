@@ -30,6 +30,7 @@ jobs:
             scripts/check_soc_config.py \
             scripts/check_boot_image.py \
             scripts/test_boot_image.py \
+            scripts/test_bootrom_generator.py \
             scripts/gen_bootrom.py \
             scripts/gen_raw_boot_image.py \
             scripts/gen_offline_demo_data.py
@@ -40,6 +41,7 @@ jobs:
       - name: Test and validate RVPC boot images
         run: |
           python3 scripts/test_boot_image.py
+          python3 scripts/test_bootrom_generator.py
           python3 scripts/check_boot_image.py
 
       - name: Verify generated boot assets
@@ -120,6 +122,25 @@ jobs:
             tb/monitor_shell_tb.v \
             -Mdir /tmp/obj_monitor_shell
           /tmp/obj_monitor_shell/Vmonitor_shell_tb
+
+      - name: Test native-bus fallback end to end
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-PINMISSING \
+            -Wno-WIDTHTRUNC \
+            -Wno-WIDTHEXPAND \
+            -GUSE_AXI=0 \
+            --top-module monitor_shell_tb \
+            third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
+            rtl/memory/*.v \
+            rtl/peripherals/*.v \
+            rtl/soc/*.v \
+            tb/monitor_shell_tb.v \
+            -Mdir /tmp/obj_monitor_shell_native
+          /tmp/obj_monitor_shell_native/Vmonitor_shell_tb
 
       - name: Test Basys 3 top level end to end
         run: |

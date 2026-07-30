@@ -69,6 +69,9 @@ The existing `top_basys3_tb` smoke test also runs with `USE_AXI=1`, exercising
 boot ROM, SRAM, UART, GPIO, timer, SPI, PS/2, NPU MMIO, and PCPI through the AXI
 path.
 
+The timer interrupt is a sideband signal (`irq[3]`/`eoi[3]`), not an AXI
+transaction. AXI is used only when the handler accesses timer registers.
+
 ## Vivado synthesis and timing validation
 
 Run the complete AXI validation flow from the repository root:

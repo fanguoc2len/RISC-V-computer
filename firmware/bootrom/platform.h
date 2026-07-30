@@ -36,6 +36,7 @@
 #define TIMER_CMP_LO     REG32(TIMER_BASE + 0x08u)
 #define TIMER_CMP_HI     REG32(TIMER_BASE + 0x0Cu)
 #define TIMER_CTRL       REG32(TIMER_BASE + 0x10u)
+#define TIMER_IRQ_COUNT  REG32(TIMER_BASE + 0x14u)
 
 #define SPI_CTRL         REG32(SPI_BASE + 0x00u)
 #define SPI_DATA         REG32(SPI_BASE + 0x04u)

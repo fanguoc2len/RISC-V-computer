@@ -128,6 +128,9 @@ Uu tien kiem tra:
 - cac chan `vgaRed/Green/Blue` trong `.xdc` da dung chua
 
 Trong ban hien tai, VGA text console duoc feed truc tiep tu stream UART debug trong SoC. Neu UART song ma VGA den, kha nang cao la loi o timing/pin/man hinh; neu VGA co len nhung khong hien text moi, kiem tra them duong `debug_uart_tx_valid/debug_uart_tx_char`.
+Lenh `t` phai tra `TIME=<counter> IRQS=00000001`, xac nhan timer IRQ da vao
+vector `0x10`, duoc acknowledge va quay lai monitor.
+
 Neu VGA co len nhung dong `STAT` khong phai `00000001`, uu tien kiem tra lai duong boot SPI/boot image.
 
 ## 6. Neu bitstream nap duoc nhung khong co dau hieu song

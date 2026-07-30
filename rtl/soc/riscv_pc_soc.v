@@ -33,6 +33,9 @@ module riscv_pc_soc #(
     localparam [31:0] SPI_BASE       = 32'h2000_3000;
     localparam [31:0] PS2_BASE       = 32'h2000_4000;
     localparam [31:0] NPU_BASE       = 32'h2000_5000;
+    localparam [31:0] CPU_IRQ_VECTOR = BOOT_ROM_BASE + 32'h0000_0010;
+    localparam integer TIMER_IRQ_INDEX = 3;
+    localparam [31:0] CPU_LATCHED_IRQ = ~(32'h1 << TIMER_IRQ_INDEX);
     localparam [31:0] BOOT_INFO_STATUS_ADDR = SRAM_BASE + 32'h0000_0014;
     localparam [17:0] BOOT_ROM_SEL   = BOOT_ROM_BASE[31:14];
     localparam [15:0] SRAM_SEL       = SRAM_BASE[31:16];
@@ -92,7 +95,7 @@ module riscv_pc_soc #(
     wire sel_ram   = mem_valid && (mem_addr[31:16] == SRAM_SEL);
     wire sel_uart  = mem_valid && (mem_addr[31:3]  == UART_SEL);
     wire sel_gpio  = mem_valid && (mem_addr[31:2]  == GPIO_SEL);
-    wire sel_timer = mem_valid && (mem_addr[31:5]  == TIMER_SEL) && (mem_addr[4:2] <= 3'd4);
+    wire sel_timer = mem_valid && (mem_addr[31:5]  == TIMER_SEL) && (mem_addr[4:2] <= 3'd5);
     wire sel_spi   = mem_valid && (mem_addr[31:3]  == SPI_SEL);
     wire sel_ps2   = mem_valid && (mem_addr[31:3]  == PS2_SEL);
     wire sel_npu   = mem_valid && (mem_addr[31:6]  == NPU_SEL);
@@ -120,6 +123,9 @@ module riscv_pc_soc #(
     wire [31:0] pcpi_rd;
     wire        pcpi_wait;
     wire        pcpi_ready;
+    wire [31:0] cpu_irq =
+        timer_irq ? (32'h1 << TIMER_IRQ_INDEX) : 32'h0000_0000;
+    wire [31:0] cpu_eoi;
 
     // Bit 31 is a sticky local-bus/AXI decode-error indication. PicoRV32 has
     // no native bus-fault input, so the transaction completes while hardware
@@ -179,11 +185,10 @@ module riscv_pc_soc #(
     generate
         if (USE_AXI != 0) begin : gen_axi_cpu
             wire trap_unused;
-            wire [31:0] eoi_unused;
 
             picorv32_axi4lite #(
                 .PROGADDR_RESET  (BOOT_ROM_BASE),
-                .PROGADDR_IRQ    (BOOT_ROM_BASE),
+                .PROGADDR_IRQ    (CPU_IRQ_VECTOR),
                 .STACKADDR       (SRAM_BASE + SRAM_BYTES),
                 .ENABLE_MUL      (1),
                 .ENABLE_DIV      (1),
@@ -191,7 +196,8 @@ module riscv_pc_soc #(
                 .COMPRESSED_ISA  (1),
                 .ENABLE_COUNTERS (1),
                 .ENABLE_PCPI     (1),
-                .ENABLE_IRQ      (0)
+                .ENABLE_IRQ      (1),
+                .LATCHED_IRQ     (CPU_LATCHED_IRQ)
             ) cpu_i (
                 .clk           (clk),
                 .resetn        (resetn),
@@ -224,8 +230,8 @@ module riscv_pc_soc #(
                 .pcpi_rd       (pcpi_rd),
                 .pcpi_wait     (pcpi_wait),
                 .pcpi_ready    (pcpi_ready),
-                .irq           (32'h0000_0000),
-                .eoi           (eoi_unused)
+                .irq           (cpu_irq),
+                .eoi           (cpu_eoi)
             );
 
             axi4lite_to_native axi_slave_i (
@@ -264,7 +270,7 @@ module riscv_pc_soc #(
 
             picorv32 #(
                 .PROGADDR_RESET   (BOOT_ROM_BASE),
-                .PROGADDR_IRQ     (BOOT_ROM_BASE),
+                .PROGADDR_IRQ     (CPU_IRQ_VECTOR),
                 .STACKADDR        (SRAM_BASE + SRAM_BYTES),
                 .ENABLE_MUL       (1),
                 .ENABLE_DIV       (1),
@@ -272,7 +278,8 @@ module riscv_pc_soc #(
                 .COMPRESSED_ISA   (1),
                 .ENABLE_COUNTERS  (1),
                 .ENABLE_PCPI      (1),
-                .ENABLE_IRQ       (0)
+                .ENABLE_IRQ       (1),
+                .LATCHED_IRQ      (CPU_LATCHED_IRQ)
             ) cpu_i (
                 .clk        (clk),
                 .resetn     (resetn),
@@ -291,7 +298,8 @@ module riscv_pc_soc #(
                 .pcpi_rd    (pcpi_rd),
                 .pcpi_wait  (pcpi_wait),
                 .pcpi_ready (pcpi_ready),
-                .irq        (32'h0000_0000)
+                .irq        (cpu_irq),
+                .eoi        (cpu_eoi)
             );
         end
     endgenerate
@@ -350,6 +358,7 @@ module riscv_pc_soc #(
         .addr             (mem_addr - TIMER_BASE),
         .wdata            (mem_wdata),
         .wstrb            (mem_wstrb),
+        .irq_ack          (cpu_eoi[TIMER_IRQ_INDEX]),
         .ready            (timer_ready),
         .rdata            (timer_rdata),
         .irq              (timer_irq),

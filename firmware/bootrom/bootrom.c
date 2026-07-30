@@ -188,6 +188,8 @@ static void show_time_snapshot(void)
 {
     uart_puts("TIME=");
     uart_put_hex32(TIMER_COUNT_LO);
+    uart_puts(" IRQS=");
+    uart_put_hex32(TIMER_IRQ_COUNT);
     uart_puts("\n> ");
 }
 

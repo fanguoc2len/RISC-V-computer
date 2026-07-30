@@ -46,6 +46,10 @@ clk/reset ----->|      PicoRV32        |
 clk/4 --------------------------------> VGA timing + test pattern
 ```
 
+Timer `irq[3]` enters the CPU at ROM vector `0x0000_0010`. The generated
+handler preserves `t0/t1` in PicoRV32 q-registers, clears the level source,
+and returns with `retirq`; details are in `INTERRUPTS.md`.
+
 ## 3. Memory organization
 
 ### Boot ROM

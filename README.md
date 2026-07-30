@@ -11,7 +11,7 @@ At its current stage, the project is a practical FPGA bring-up platform with:
 - `PicoRV32` CPU with an AXI4-Lite master path (native fallback retained)
 - boot ROM + unified SRAM in BRAM
 - UART monitor shell
-- GPIO / LED / timer / SPI / PS2 peripherals
+- GPIO / LED / timer IRQ / SPI / PS2 peripherals
 - VGA text console with status footer
 - small NPU-style MMIO and PCPI test paths
 - Vivado simulation flow, build scripts, and presentation demo
@@ -51,6 +51,7 @@ architecture rather than an oversized, unfinished operating-system scope.
 - PS/2 keyboard input path
 - VGA text console `80x29` with live footer fields
 - simple memory dump / timer / RAM self-test commands
+- PicoRV32 external IRQ3 vector with a register-safe one-shot timer handler
 - NPU-lite dot4, vector accumulate, and matvec4 validation paths
 - SRAM app handoff via command `g` into `RVOS/32`
 
@@ -84,7 +85,7 @@ repeatable bring-up, and clear technical communication.
 | `0x1000_0000` - `0x1000_FFFF` | Unified SRAM (64 KB) |
 | `0x2000_0000` - `0x2000_0007` | UART divider / data |
 | `0x2000_1000` - `0x2000_1003` | GPIO output |
-| `0x2000_2000` - `0x2000_2013` | Timer counter / compare |
+| `0x2000_2000` - `0x2000_2017` | Timer counter / compare / control / IRQ acknowledge count |
 | `0x2000_3000` - `0x2000_3007` | SPI master |
 | `0x2000_4000` - `0x2000_4007` | PS/2 keyboard |
 | `0x2000_5000` - `0x2000_5027` | NPU-lite dot4 / matvec4 MMIO |
@@ -221,8 +222,9 @@ GitHub Actions runs hardware-independent checks for:
 - RVPC header/range/checksum validation, including corrupted-payload rejection
 - Verilator structural lint of the Basys 3 top-level RTL hierarchy
 - AXI4-Lite bridge protocol behavior under channel and response backpressure
-- timer MMIO counter/byte-strobe/compare/IRQ/W1C behavior
+- timer MMIO counter/byte-strobe/compare/IRQ/EOI-count/W1C behavior
 - monitor-shell and full Basys 3 top-level end-to-end regressions
+- native CPU-bus fallback parity with the default AXI path
 
 Vivado simulation, synthesis, implementation, and bitstream generation remain
 in the documented local scripts because the proprietary toolchain is not
@@ -240,6 +242,7 @@ not be read as a replacement for this repo.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/AXI4_LITE.md](docs/AXI4_LITE.md)
+- [docs/INTERRUPTS.md](docs/INTERRUPTS.md)
 - [docs/BOOT_FLOW.md](docs/BOOT_FLOW.md)
 - [docs/BOARD_BRINGUP.md](docs/BOARD_BRINGUP.md)
 - [docs/DEBUG_GUIDE.md](docs/DEBUG_GUIDE.md)

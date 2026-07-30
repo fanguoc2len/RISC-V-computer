@@ -187,6 +187,20 @@ class Program:
     def pcpi_dot4(self, rd: str, rs1: str, rs2: str) -> None:
         self.r_type(rd, rs1, rs2, funct3=0x0, funct7=0x2A, opcode=0x0B)
 
+    def getq(self, rd: str, qs: int) -> None:
+        assert 0 <= qs < 4
+        self.emit((qs << 15) | (reg(rd) << 7) | 0x0B)
+
+    def setq(self, qd: int, rs: str) -> None:
+        assert 0 <= qd < 4
+        self.emit((0x01 << 25) | (reg(rs) << 15) | (qd << 7) | 0x0B)
+
+    def maskirq(self, rd: str, rs: str) -> None:
+        self.emit((0x03 << 25) | (reg(rs) << 15) | (reg(rd) << 7) | 0x0B)
+
+    def retirq(self) -> None:
+        self.emit((0x02 << 25) | 0x0B)
+
     def li(self, rd: str, imm: int) -> None:
         imm = as_signed32(imm)
         if signed_range(imm, 12):
@@ -727,9 +741,21 @@ def build_boot_assets(
     ]
     npu_vec16_expected = 0xFFFFFF5C
     npu_mat4_expected = [0x00000032, 0xFFFFFFFC, 0xFFFFFFCE, 0x000000E2]
+    timer_irq_mask = 1 << 3
+    timer_irq_delay_cycles = max(clk_freq_hz // 1000, 100)
 
     p = Program()
 
+    # PicoRV32 enters external interrupts at 0x10. Keep reset and IRQ vectors
+    # fixed even as the generated monitor grows.
+    p.j("boot_reset")
+    while p.pc() < 0x10:
+        p.addi("zero", "zero", 0)
+    p.label("irq_vector")
+    assert p.pc() == 0x10
+    p.j("timer_irq_handler")
+
+    p.label("boot_reset")
     p.li("s0", uart_base)
     p.li("s1", gpio_base)
     p.li("s2", 1)
@@ -1118,6 +1144,23 @@ def build_boot_assets(
     p.sw("zero", 24, "t0")
     p.sw("zero", 28, "t0")
     p.li("s5", 1)
+
+    # Arm a one-shot external timer interrupt and unmask only IRQ3. The IRQ
+    # handler clears the source before returning, so it cannot storm.
+    p.li("t0", timer_base)
+    p.lw("t1", 0, "t0")
+    p.lw("t3", 4, "t0")
+    p.li("t2", timer_irq_delay_cycles)
+    p.add("t4", "t1", "t2")
+    p.sltu("t5", "t4", "t1")
+    p.add("t3", "t3", "t5")
+    p.sw("t4", 8, "t0")
+    p.sw("t3", 12, "t0")
+    p.li("t1", 2)
+    p.sw("t1", 16, "t0")
+    p.li("t1", (~timer_irq_mask) & 0xFFFFFFFF)
+    p.maskirq("zero", "t1")
+
     puts(p, "s0", "t0", "BOOT=OK\r\n> ")
     p.j("main_loop")
 
@@ -1206,6 +1249,9 @@ def build_boot_assets(
     p.li("t3", timer_base)
     p.lw("t1", 0, "t3")
     put_hex_word(p, "t1", "time_lo")
+    puts(p, "s0", "t0", " IRQS=")
+    p.lw("t1", 20, "t3")
+    put_hex_word(p, "t1", "time_irqs")
     puts(p, "s0", "t0", "\r\n> ")
     p.j("main_loop")
 
@@ -1399,6 +1445,20 @@ def build_boot_assets(
     p.label("go_fail")
     puts(p, "s0", "t0", "GO=ER\r\n> ")
     p.j("main_loop")
+
+    p.label("timer_irq_handler")
+    # q0/q1 are populated by PicoRV32. Preserve t0/t1 in q2/q3, clear the
+    # level source and pending latch, then restore the interrupted context.
+    p.setq(2, "t0")
+    p.setq(3, "t1")
+    p.li("t0", timer_base)
+    p.sw("zero", 8, "t0")
+    p.sw("zero", 12, "t0")
+    p.li("t1", 3)
+    p.sw("t1", 16, "t0")
+    p.getq("t1", 3)
+    p.getq("t0", 2)
+    p.retirq()
 
     p.resolve()
     return p.words, boot_header + boot_payload

@@ -21,6 +21,7 @@ Tinh den 2026-07-31, nhanh hien tai da co:
 - CPU dung duong AXI4-Lite mac dinh, co native fallback va DECERR observability
 - CI open-source kiem tra config drift, boot image, AXI bridge, timer va hai regression end-to-end
 - Vivado 2025.2 da tao bitstream voi setup/hold slack duong va DRC khong co error
+- timer IRQ3 da co vector `0x10`, save/restore q2/q3, EOI counter va regression end-to-end
 
 ## Trang thai cac phase
 
@@ -30,7 +31,7 @@ Tinh den 2026-07-31, nhanh hien tai da co:
 - Phase 3: hoan thanh VGA timing, text console va footer.
 - Phase 4: hoan thanh PS/2 Set 2 cho nhom phim/lenh demo.
 - Phase 5: hoan thanh monitor, SRAM app, RAM self-test va NPU test paths.
-- Phase 6: chua hoan thanh; day la backlog tuy chon, khong phai release claim.
+- Phase 6: IRQ da hoan thanh; cac muc UI/filesystem/app van la backlog tuy chon.
 
 ## Phase 1 - Nen toi thieu chay duoc
 
@@ -106,14 +107,14 @@ Deliverables:
 
 Chi lam neu con thoi gian:
 
-- IRQ
+- IRQ (da hoan thanh cho timer one-shot)
 - text VRAM dep hon
 - simple file system
 - game / calculator / text editor sieu don gian
 
-IRQ timer peripheral da co thanh ghi compare/pending va duoc unit-test, nhung
-PicoRV32 van de `ENABLE_IRQ=0`. Chi bat IRQ sau khi co vector, save/restore
-register, clear source va `retirq`; bat truc tiep luc nay se lam sai boot flow.
+Timer IRQ dung external IRQ3, vector ROM `0x10`, q2/q3 de giu `t0/t1`, W1C
+nguon level va `retirq`. Regression AXI va native yeu cau CPU acknowledge dung
+mot lan cho moi lan boot roi tiep tuc chay monitor va app SRAM.
 
 ## Uu tien quan trong
 

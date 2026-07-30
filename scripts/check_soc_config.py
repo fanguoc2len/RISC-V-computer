@@ -20,6 +20,7 @@ from soc_config import (
     SRAM_SIZE_BYTES,
     SRAM_WORDS,
     TIMER_BASE,
+    TIMER_SIZE_BYTES,
     UART_BASE,
     UART_BAUD,
 )
@@ -102,6 +103,12 @@ def main() -> None:
         "board clock",
     )
     expect(top_tb, r"UART_BAUD\s*=\s*([^;]+);", UART_BAUD, "top test UART baud")
+    expect(
+        soc,
+        r"sel_timer\s*=\s*.*mem_addr\[4:2\]\s*<=\s*3'd(\d+)",
+        (TIMER_SIZE_BYTES // 4) - 1,
+        "timer last decoded word",
+    )
 
     if BOOT_ROM_SIZE_BYTES != BOOT_ROM_WORDS * 4:
         raise SystemExit("manifest boot ROM byte and word sizes disagree")

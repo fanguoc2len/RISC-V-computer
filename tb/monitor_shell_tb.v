@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module monitor_shell_tb;
+module monitor_shell_tb #(
+    parameter integer USE_AXI = 1
+);
     // This bench instantiates the SoC directly, so model the 50 MHz clock
     // produced by top_basys3 rather than the 100 MHz board oscillator.
     localparam integer CLK_FREQ_HZ = 50_000_000;
@@ -183,7 +185,8 @@ module monitor_shell_tb;
         .CLK_FREQ_HZ (CLK_FREQ_HZ),
         .UART_BAUD   (UART_BAUD),
         .BOOT_ROM_WORDS (4096),
-        .SRAM_WORDS  (16384)
+        .SRAM_WORDS  (16384),
+        .USE_AXI     (USE_AXI)
     ) dut (
         .clk              (clk),
         .resetn           (resetn),
@@ -465,6 +468,12 @@ module monitor_shell_tb;
 
         if (debug_boot_status !== 32'h0000_0001) begin
             $display("FAIL: debug_boot_status is 0x%08x instead of 0x00000001.", debug_boot_status);
+            $fatal(1);
+        end
+
+        if (dut.timer_i.irq_count !== boot_ok_count) begin
+            $display("FAIL: Timer IRQ acknowledgements (%0d) do not match successful boots (%0d).",
+                     dut.timer_i.irq_count, boot_ok_count);
             $fatal(1);
         end
 

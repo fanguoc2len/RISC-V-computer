@@ -7,6 +7,7 @@ module timer_mmio_tb;
     reg  [31:0] addr;
     reg  [31:0] wdata;
     reg  [3:0]  wstrb;
+    reg         irq_ack;
     wire        ready;
     wire [31:0] rdata;
     wire        irq;
@@ -19,6 +20,7 @@ module timer_mmio_tb;
         .addr             (addr),
         .wdata            (wdata),
         .wstrb            (wstrb),
+        .irq_ack          (irq_ack),
         .ready            (ready),
         .rdata            (rdata),
         .irq              (irq),
@@ -92,6 +94,7 @@ module timer_mmio_tb;
         addr = 32'd0;
         wdata = 32'd0;
         wstrb = 4'd0;
+        irq_ack = 1'b0;
 
         repeat (3) tick;
         resetn = 1'b1;
@@ -123,6 +126,14 @@ module timer_mmio_tb;
         mmio_read(5'h10, value);
         check_condition(value[1:0] == 2'b11, "status did not report enabled + pending");
 
+        // EOI can remain asserted for the whole handler; count only its edge.
+        irq_ack = 1'b1;
+        repeat (3) tick;
+        irq_ack = 1'b0;
+        tick;
+        mmio_read(5'h14, value);
+        check_condition(value == 32'd1, "IRQ acknowledge edge was not counted exactly once");
+
         // Disable the compare source, then clear pending with W1C while retaining enable.
         mmio_write(5'h08, 32'd0, 4'b1111);
         mmio_write(5'h10, 32'h0000_0003, 4'b0001);
@@ -130,7 +141,7 @@ module timer_mmio_tb;
         mmio_read(5'h10, value);
         check_condition(value[1:0] == 2'b10, "control state after W1C was incorrect");
 
-        $display("PASS: timer MMIO counter, strobes, compare, IRQ and W1C checks completed.");
+        $display("PASS: timer MMIO counter, strobes, compare, IRQ, EOI count and W1C checks completed.");
         $finish;
     end
 endmodule

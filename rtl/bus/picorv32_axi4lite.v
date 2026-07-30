@@ -8,6 +8,7 @@ module picorv32_axi4lite #(
     parameter [0:0]  ENABLE_MUL = 0,
     parameter [0:0]  ENABLE_DIV = 0,
     parameter [0:0]  ENABLE_IRQ = 0,
+    parameter [31:0] LATCHED_IRQ = 32'hffff_ffff,
     parameter [31:0] PROGADDR_RESET = 32'h0000_0000,
     parameter [31:0] PROGADDR_IRQ = 32'h0000_0010,
     parameter [31:0] STACKADDR = 32'hffff_ffff
@@ -75,7 +76,8 @@ module picorv32_axi4lite #(
         .COMPRESSED_ISA  (COMPRESSED_ISA),
         .ENABLE_COUNTERS (ENABLE_COUNTERS),
         .ENABLE_PCPI     (ENABLE_PCPI),
-        .ENABLE_IRQ      (ENABLE_IRQ)
+        .ENABLE_IRQ      (ENABLE_IRQ),
+        .LATCHED_IRQ     (LATCHED_IRQ)
     ) cpu_i (
         .clk             (clk),
         .resetn          (resetn),

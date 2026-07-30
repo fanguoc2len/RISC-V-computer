@@ -468,6 +468,12 @@ module top_basys3_tb;
             $fatal(1);
         end
 
+        if (dut.soc_i.timer_i.irq_count !== boot_ok_count) begin
+            $display("FAIL: Timer IRQ acknowledgements (%0d) do not match successful boots (%0d).",
+                     dut.soc_i.timer_i.irq_count, boot_ok_count);
+            $fatal(1);
+        end
+
         if (dut.soc_i.sram_i.mem[0] !== BOOT_INFO_MAGIC ||
             dut.soc_i.sram_i.mem[1] !== {spi_image_mem[7], spi_image_mem[6], spi_image_mem[5], spi_image_mem[4]} ||
             dut.soc_i.sram_i.mem[2] !== {spi_image_mem[11], spi_image_mem[10], spi_image_mem[9], spi_image_mem[8]} ||
