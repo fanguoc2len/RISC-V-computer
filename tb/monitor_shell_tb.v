@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 
 module monitor_shell_tb #(
-    parameter integer USE_AXI = 1
+    parameter integer USE_AXI = 1,
+    parameter integer DIRTY_SRAM = 0
 );
     // This bench instantiates the SoC directly, so model the 50 MHz clock
     // produced by top_basys3 rather than the 100 MHz board oscillator.
@@ -13,6 +14,7 @@ module monitor_shell_tb #(
     localparam integer BOOT_WAIT_CLKS = 15_000_000;
     localparam integer BOOT_HEADER_BYTES = 32;
     localparam integer SPI_IMAGE_MAX_BYTES = 8192;
+    localparam integer SRAM_WORDS = 16384;
     localparam [31:0] BOOT_INFO_MAGIC = 32'h49425652;
     localparam [31:0] NPU_DEMO_EXPECT = 32'h00000032;
     localparam [31:0] NPU_VEC16_EXPECT = 32'hFFFFFF5C;
@@ -48,6 +50,7 @@ module monitor_shell_tb #(
     integer help_reply_count;
     integer app_help_count;
     integer spi_mem_init_idx;
+    integer sram_dirty_idx;
     reg last_uart_tx;
     reg uart_mon_read;
     reg uart_mon_valid_prev;
@@ -185,7 +188,7 @@ module monitor_shell_tb #(
         .CLK_FREQ_HZ (CLK_FREQ_HZ),
         .UART_BAUD   (UART_BAUD),
         .BOOT_ROM_WORDS (4096),
-        .SRAM_WORDS  (16384),
+        .SRAM_WORDS  (SRAM_WORDS),
         .USE_AXI     (USE_AXI)
     ) dut (
         .clk              (clk),
@@ -290,6 +293,17 @@ module monitor_shell_tb #(
         end
 
         $display("Starting monitor shell simulation...");
+
+        // Model the FPGA contract: ordinary SRAM contents are unspecified at
+        // power-up. Delay past time-zero initialization, then overwrite every
+        // word while reset is still asserted.
+        #1;
+        if (DIRTY_SRAM != 0) begin
+            for (sram_dirty_idx = 0; sram_dirty_idx < SRAM_WORDS; sram_dirty_idx = sram_dirty_idx + 1) begin
+                dut.sram_i.mem[sram_dirty_idx] = 32'hA5A5_0000 ^ sram_dirty_idx;
+            end
+            $display("INFO: Prefilled SRAM with nonzero power-up test data.");
+        end
 
         repeat (20) @(posedge clk);
         resetn = 1'b1;

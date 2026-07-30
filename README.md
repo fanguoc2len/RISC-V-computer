@@ -224,7 +224,8 @@ GitHub Actions runs hardware-independent checks for:
 - Yosys synthesis of the complete top level for the Xilinx 7-series family
 - AXI4-Lite bridge protocol behavior under channel and response backpressure
 - timer MMIO counter/byte-strobe/compare/IRQ/EOI-count/W1C behavior
-- monitor-shell and full Basys 3 top-level end-to-end regressions
+- monitor-shell boot from deliberately nonzero SRAM power-up contents
+- full Basys 3 top-level end-to-end regression
 - native CPU-bus fallback parity with the default AXI path
 
 Vivado simulation, synthesis, implementation, and bitstream generation remain

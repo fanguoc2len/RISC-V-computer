@@ -108,7 +108,7 @@ jobs:
             -Mdir /tmp/obj_timer_mmio
           /tmp/obj_timer_mmio/Vtimer_mmio_tb
 
-      - name: Test monitor shell end to end
+      - name: Test monitor shell with dirty SRAM
         run: |
           verilator \
             --binary \
@@ -116,6 +116,7 @@ jobs:
             -Wno-PINMISSING \
             -Wno-WIDTHTRUNC \
             -Wno-WIDTHEXPAND \
+            -GDIRTY_SRAM=1 \
             --top-module monitor_shell_tb \
             third_party/picorv32/picorv32.v \
             rtl/bus/*.v \

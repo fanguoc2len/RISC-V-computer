@@ -81,7 +81,9 @@ Khong nen lam framebuffer do hoa full-color o giai doan dau, vi se ton rat nhieu
 Vong lap zero-fill SRAM va space-fill text RAM chi duoc bat trong RTL
 simulation. Khi synthesis, SRAM duoc suy dien thanh block RAM khong phu thuoc
 power-up value; text console tu xoa toan bo RAM bang `clear_active` sau reset.
-Boot ROM van nap `bootrom.mem` trong ca simulation va synthesis.
+Boot ROM van nap `bootrom.mem` trong ca simulation va synthesis. CI prefill
+toan bo SRAM bang mau khac zero truoc khi nha reset de bat moi phu thuoc ngam
+vao gia tri power-up.
 
 ## 4. I/O strategy
 
