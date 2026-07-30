@@ -221,7 +221,8 @@ GitHub Actions runs hardware-independent checks for:
 - deterministic regeneration of `bootrom.mem` and `boot_image.hex`
 - RVPC header/range/checksum validation, including corrupted-payload rejection
 - Verilator structural lint of the Basys 3 top-level RTL hierarchy
-- Yosys synthesis of the complete top level for the Xilinx 7-series family
+- Yosys synthesis of the complete top level for the Xilinx 7-series family,
+  with an 80% LUT/FF/BRAM/DSP resource ceiling for the Basys 3
 - AXI4-Lite bridge protocol behavior under channel and response backpressure
 - timer MMIO counter/byte-strobe/compare/IRQ/EOI-count/W1C behavior
 - monitor-shell boot from deliberately nonzero SRAM power-up contents
@@ -237,6 +238,10 @@ Run the portable synthesis check locally with:
 ```bash
 bash scripts/run_yosys_check.sh
 ```
+
+The resource ceiling is defined in `config/fpga_resources.json`. It is an
+early-growth guard based on the synthesized primitive estimate, not a
+replacement for Vivado placement, routing, DRC, utilization, or timing.
 
 ## Why There Is Also a Zybo Repo
 

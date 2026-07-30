@@ -28,15 +28,19 @@ jobs:
             scripts/boot_image.py \
             scripts/soc_config.py \
             scripts/check_soc_config.py \
+            scripts/check_yosys_resources.py \
             scripts/check_boot_image.py \
             scripts/test_boot_image.py \
             scripts/test_bootrom_generator.py \
+            scripts/test_yosys_resources.py \
             scripts/gen_bootrom.py \
             scripts/gen_raw_boot_image.py \
             scripts/gen_offline_demo_data.py
 
       - name: Verify shared SoC configuration
-        run: python3 scripts/check_soc_config.py
+        run: |
+          python3 scripts/check_soc_config.py
+          python3 scripts/test_yosys_resources.py
 
       - name: Test and validate RVPC boot images
         run: |

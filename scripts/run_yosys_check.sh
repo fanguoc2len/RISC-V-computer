@@ -14,12 +14,15 @@ rtl_files=(
     rtl/video/*.v
 )
 
+yosys_report="${TMPDIR:-/tmp}/riscv_yosys_resources_$$.json"
+trap 'rm -f "$yosys_report"' EXIT
+
 yosys -q -p "
     read_verilog -sv -DSYNTHESIS ${rtl_files[*]};
     hierarchy -check -top top_basys3;
     synth_xilinx -family xc7 -top top_basys3;
     check -assert;
-    stat
+    tee -o $yosys_report stat -json
 "
 
-echo "Yosys Xilinx 7-series synthesis check passed"
+python3 scripts/check_yosys_resources.py "$yosys_report"
