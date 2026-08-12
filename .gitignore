@@ -13,6 +13,8 @@ __pycache__/
 *.sim/
 *.str
 *.xpr
+__pycache__/
+*.pyc
 build/
 dfx_runtime.txt
 firmware/bootrom/build/

@@ -29,6 +29,38 @@ source, documentation, and verification tree.
 - CPU: `PicoRV32`
 - Memory model: unified address space
 
+## System Architecture
+
+```mermaid
+flowchart TB
+    subgraph FPGA["Basys 3 / Artix-7 FPGA"]
+        CPU["PicoRV32 CPU"] -->|"native memory interface"| Decode["Address decoder"]
+        Decode --> ROM["Boot ROM<br/>16 KB"]
+        Decode --> SRAM["Unified SRAM<br/>64 KB"]
+        Decode --> UART["UART MMIO"]
+        Decode --> GPIO["GPIO / LED MMIO"]
+        Decode --> Timer["Timer MMIO"]
+        Decode --> SPI["SPI master MMIO"]
+        Decode --> PS2["PS/2 keyboard MMIO"]
+        Decode --> NPU["NPU-lite<br/>MMIO + PCPI"]
+        UART --> VGA["VGA text console"]
+        GPIO --> VGA
+        Timer --> VGA
+        PS2 --> VGA
+    end
+
+    Serial["UART terminal"] <--> UART
+    Keyboard["PS/2 keyboard"] --> PS2
+    Storage["Raw SPI boot image"] --> SPI
+    SPI -->|"boot firmware copies image"| SRAM
+    GPIO --> LEDs["Board LEDs"]
+    VGA --> Display["VGA display"]
+```
+
+The CPU uses a deliberately small native-memory interconnect. Boot firmware
+can load an image through SPI into SRAM, while memory-mapped peripherals expose
+the board I/O and experimental accelerator paths.
+
 ## What This Repo Demonstrates
 
 The project is meant to show practical FPGA system work:
