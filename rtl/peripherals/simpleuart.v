@@ -41,6 +41,7 @@ module simpleuart #(parameter integer DEFAULT_DIV = 1) (
 	reg [7:0] recv_pattern;
 	reg [7:0] recv_buf_data;
 	reg recv_buf_valid;
+	(* ASYNC_REG = "TRUE" *) reg [1:0] ser_rx_sync;
 
 	reg [9:0] send_pattern;
 	reg [3:0] send_bitcnt;
@@ -70,13 +71,15 @@ module simpleuart #(parameter integer DEFAULT_DIV = 1) (
 			recv_pattern <= 0;
 			recv_buf_data <= 0;
 			recv_buf_valid <= 0;
+			ser_rx_sync <= 2'b11;
 		end else begin
+			ser_rx_sync <= {ser_rx_sync[0], ser_rx};
 			recv_divcnt <= recv_divcnt + 1;
 			if (reg_dat_re)
 				recv_buf_valid <= 0;
 			case (recv_state)
 				0: begin
-					if (!ser_rx)
+					if (!ser_rx_sync[1])
 						recv_state <= 1;
 					recv_divcnt <= 0;
 				end
@@ -95,7 +98,7 @@ module simpleuart #(parameter integer DEFAULT_DIV = 1) (
 				end
 				default: begin
 					if (recv_divcnt > cfg_divider) begin
-						recv_pattern <= {ser_rx, recv_pattern[7:1]};
+						recv_pattern <= {ser_rx_sync[1], recv_pattern[7:1]};
 						recv_state <= recv_state + 1;
 						recv_divcnt <= 0;
 					end

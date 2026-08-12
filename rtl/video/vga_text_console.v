@@ -24,10 +24,27 @@ module vga_text_console (
     wire [9:0] x;
     wire [9:0] y;
     wire active;
+    wire hsync_raw;
+    wire vsync_raw;
 
+    (* ram_style = "block" *)
     reg [7:0] text_ram [0:TEXT_DEPTH-1];
+    reg [7:0] text_rdata;
     reg [6:0] cursor_col;
     reg [4:0] cursor_row;
+    reg [4:0] row_base;
+    reg       clear_active;
+    reg [11:0] clear_addr;
+    reg [11:0] clear_last;
+    reg        text_we;
+    reg [11:0] text_waddr;
+    reg [7:0]  text_wdata;
+
+    reg [9:0] x_d;
+    reg [9:0] y_d;
+    reg       active_d;
+    reg       hsync_d;
+    reg       vsync_d;
 
     reg [7:0] current_char;
     reg [7:0] canon_char;
@@ -35,39 +52,80 @@ module vga_text_console (
     reg text_pixel;
     reg cursor_pixel;
     reg status_row_active;
-    integer cell_index;
+    integer init_idx;
+
+    wire [5:0] cursor_physical_sum = {1'b0, row_base} + {1'b0, cursor_row};
+    wire [4:0] cursor_physical_row =
+        (cursor_physical_sum >= TEXT_ROWS) ?
+        (cursor_physical_sum - TEXT_ROWS) : cursor_physical_sum[4:0];
+    wire [11:0] cursor_row_addr =
+        ({7'b0000000, cursor_physical_row} << 6) +
+        ({7'b0000000, cursor_physical_row} << 4);
+    wire [11:0] row_base_addr =
+        ({7'b0000000, row_base} << 6) +
+        ({7'b0000000, row_base} << 4);
+
+    wire [5:0] pixel_physical_sum = {1'b0, row_base} + {1'b0, y[8:4]};
+    wire [4:0] pixel_physical_row =
+        (pixel_physical_sum >= TEXT_ROWS) ?
+        (pixel_physical_sum - TEXT_ROWS) : pixel_physical_sum[4:0];
+    wire [11:0] pixel_row_addr =
+        ({7'b0000000, pixel_physical_row} << 6) +
+        ({7'b0000000, pixel_physical_row} << 4);
+    wire [11:0] text_read_addr = pixel_row_addr + x[9:3];
+
+    assign hsync = hsync_d;
+    assign vsync = vsync_d;
+
+`ifndef SYNTHESIS
+    // Hardware clears the complete console through clear_active after reset.
+    // This initialization only avoids transient X values in RTL simulation.
+    initial begin
+        for (init_idx = 0; init_idx < TEXT_DEPTH; init_idx = init_idx + 1) begin
+            text_ram[init_idx] = 8'h20;
+        end
+    end
+`endif
 
     vga_timing_640x480 timing_i (
         .clk_pix (clk_pix),
         .resetn  (resetn),
         .x       (x),
         .y       (y),
-        .hsync   (hsync),
-        .vsync   (vsync),
+        .hsync   (hsync_raw),
+        .vsync   (vsync_raw),
         .active  (active)
     );
 
-    task automatic clear_text_ram;
-        integer idx;
-        begin
-            for (idx = 0; idx < TEXT_DEPTH; idx = idx + 1) begin
-                text_ram[idx] = 8'h20;
-            end
+    // Simple dual-port RAM: system clock writes, pixel clock reads. Keeping
+    // one access per port per cycle lets Vivado map the console storage to
+    // block RAM instead of thousands of flip-flops and LUTs.
+    always @(posedge clk_sys) begin
+        if (text_we) begin
+            text_ram[text_waddr] <= text_wdata;
         end
-    endtask
+    end
 
-    task automatic scroll_text_ram;
-        integer idx;
-        begin
-            for (idx = 0; idx < TEXT_COLS * (TEXT_ROWS - 1); idx = idx + 1) begin
-                text_ram[idx] = text_ram[idx + TEXT_COLS];
-            end
+    always @(posedge clk_pix) begin
+        text_rdata <= text_ram[text_read_addr];
+    end
 
-            for (idx = TEXT_COLS * (TEXT_ROWS - 1); idx < TEXT_DEPTH; idx = idx + 1) begin
-                text_ram[idx] = 8'h20;
-            end
+    // Align timing and coordinates with the synchronous block-RAM read.
+    always @(posedge clk_pix or negedge resetn) begin
+        if (!resetn) begin
+            x_d <= 10'd0;
+            y_d <= 10'd0;
+            active_d <= 1'b0;
+            hsync_d <= 1'b1;
+            vsync_d <= 1'b1;
+        end else begin
+            x_d <= x;
+            y_d <= y;
+            active_d <= active;
+            hsync_d <= hsync_raw;
+            vsync_d <= vsync_raw;
         end
-    endtask
+    end
 
     function [7:0] hex_ascii;
         input [3:0] nibble;
@@ -614,49 +672,82 @@ module vga_text_console (
 
     always @(posedge clk_sys or negedge resetn) begin
         if (!resetn) begin
-            clear_text_ram();
-            cursor_col = 7'd0;
-            cursor_row = 5'd0;
+            cursor_col <= 7'd0;
+            cursor_row <= 5'd0;
+            row_base <= 5'd0;
+            clear_active <= 1'b1;
+            clear_addr <= 12'd0;
+            clear_last <= TEXT_DEPTH - 1;
+            text_we <= 1'b0;
+            text_waddr <= 12'd0;
+            text_wdata <= 8'h20;
+        end else if (clear_active) begin
+            text_we <= 1'b1;
+            text_waddr <= clear_addr;
+            text_wdata <= 8'h20;
+            if (clear_addr == clear_last) begin
+                clear_active <= 1'b0;
+            end else begin
+                clear_addr <= clear_addr + 12'd1;
+            end
         end else if (text_char_valid) begin
+            text_we <= 1'b0;
             case (text_char)
                 8'h0C: begin
-                    clear_text_ram();
-                    cursor_col = 7'd0;
-                    cursor_row = 5'd0;
+                    cursor_col <= 7'd0;
+                    cursor_row <= 5'd0;
+                    row_base <= 5'd0;
+                    clear_active <= 1'b1;
+                    clear_addr <= 12'd0;
+                    clear_last <= TEXT_DEPTH - 1;
                 end
                 8'h0D: begin
-                    cursor_col = 7'd0;
+                    cursor_col <= 7'd0;
                 end
                 8'h0A: begin
-                    cursor_col = 7'd0;
+                    cursor_col <= 7'd0;
                     if (cursor_row == TEXT_ROWS - 1) begin
-                        scroll_text_ram();
+                        row_base <= (row_base == TEXT_ROWS - 1) ?
+                                    5'd0 : row_base + 5'd1;
+                        clear_active <= 1'b1;
+                        clear_addr <= row_base_addr;
+                        clear_last <= row_base_addr + TEXT_COLS - 1;
                     end else begin
-                        cursor_row = cursor_row + 5'd1;
+                        cursor_row <= cursor_row + 5'd1;
                     end
                 end
                 8'h08: begin
                     if (cursor_col != 0) begin
-                        text_ram[(cursor_row * TEXT_COLS) + cursor_col - 1] = 8'h20;
-                        cursor_col = cursor_col - 7'd1;
+                        text_we <= 1'b1;
+                        text_waddr <= cursor_row_addr + cursor_col - 1;
+                        text_wdata <= 8'h20;
+                        cursor_col <= cursor_col - 7'd1;
                     end
                 end
                 default: begin
                     if ((text_char >= 8'h20) && (text_char <= 8'h7E)) begin
-                        text_ram[(cursor_row * TEXT_COLS) + cursor_col] = text_char;
+                        text_we <= 1'b1;
+                        text_waddr <= cursor_row_addr + cursor_col;
+                        text_wdata <= text_char;
                         if (cursor_col == TEXT_COLS - 1) begin
-                            cursor_col = 7'd0;
+                            cursor_col <= 7'd0;
                             if (cursor_row == TEXT_ROWS - 1) begin
-                                scroll_text_ram();
+                                row_base <= (row_base == TEXT_ROWS - 1) ?
+                                            5'd0 : row_base + 5'd1;
+                                clear_active <= 1'b1;
+                                clear_addr <= row_base_addr;
+                                clear_last <= row_base_addr + TEXT_COLS - 1;
                             end else begin
-                                cursor_row = cursor_row + 5'd1;
+                                cursor_row <= cursor_row + 5'd1;
                             end
                         end else begin
-                            cursor_col = cursor_col + 7'd1;
+                            cursor_col <= cursor_col + 7'd1;
                         end
                     end
                 end
             endcase
+        end else begin
+            text_we <= 1'b0;
         end
     end
 
@@ -667,34 +758,32 @@ module vga_text_console (
         text_pixel = 1'b0;
         cursor_pixel = 1'b0;
         status_row_active = 1'b0;
-        cell_index = 0;
 
         red = 4'h0;
         green = 4'h0;
         blue = 4'h1;
 
-        if (active) begin
-            status_row_active = (y[8:4] == 5'd29);
+        if (active_d) begin
+            status_row_active = (y_d[8:4] == 5'd29);
 
             if (status_row_active) begin
-                current_char = status_char(x[9:3]);
-            end else if (y[8:4] < TEXT_ROWS) begin
-                cell_index = (y[8:4] * TEXT_COLS) + x[9:3];
-                current_char = text_ram[cell_index];
+                current_char = status_char(x_d[9:3]);
+            end else if (y_d[8:4] < TEXT_ROWS) begin
+                current_char = text_rdata;
             end
 
             canon_char = ((current_char >= 8'h61) && (current_char <= 8'h7A)) ? (current_char - 8'h20) : current_char;
 
-            if ((x[2:0] >= 3'd1) && (x[2:0] <= 3'd5) &&
-                (y[3:0] >= 4'd1) && (y[3:0] <= 4'd14)) begin
-                glyph_bits = font_row(canon_char, (y[3:0] - 4'd1) >> 1);
-                text_pixel = glyph_bits[5 - x[2:0]];
+            if ((x_d[2:0] >= 3'd1) && (x_d[2:0] <= 3'd5) &&
+                (y_d[3:0] >= 4'd1) && (y_d[3:0] <= 4'd14)) begin
+                glyph_bits = font_row(canon_char, (y_d[3:0] - 4'd1) >> 1);
+                text_pixel = glyph_bits[5 - x_d[2:0]];
             end
 
             if (!status_row_active &&
-                (y[8:4] == cursor_row) &&
-                (x[9:3] == cursor_col) &&
-                (y[3:0] >= 4'd13)) begin
+                (y_d[8:4] == cursor_row) &&
+                (x_d[9:3] == cursor_col) &&
+                (y_d[3:0] >= 4'd13)) begin
                 cursor_pixel = 1'b1;
             end
 

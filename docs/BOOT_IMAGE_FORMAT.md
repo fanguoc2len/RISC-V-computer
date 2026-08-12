@@ -66,6 +66,20 @@ Checksum duoc tinh bang:
 - cong modulo `2^32`
 
 Day la checksum rat de implement trong Boot ROM va du cho milestone sinh vien.
+No phat hien duoc loi truyen/lưu tru thong thuong, nhung khong phai chu ky so
+va khong chong duoc image bi sua co chu dich.
+
+Kiem tra image da tao truoc khi dua vao mo phong hoac storage:
+
+```bash
+python3 scripts/check_boot_image.py boot_image.hex
+python3 scripts/check_boot_image.py build/app_rvpc.img
+python3 scripts/test_boot_image.py
+```
+
+Validator kiem tra magic/version/reserved, kich thuoc, can hang dia chi,
+load/entry nam trong SRAM va checksum payload. Unit test cung sua mot byte
+payload de chac chan image hong bi tu choi.
 
 ## Generator Script
 

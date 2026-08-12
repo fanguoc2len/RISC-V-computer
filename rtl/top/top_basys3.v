@@ -16,9 +16,13 @@ module top_basys3 (
     output wire        sd_mosi,
     input  wire        sd_miso
 );
-    reg [1:0] pixel_divider;
-    wire resetn = ~btnC;
+    // Keep the divided clocks running while reset is asserted. Otherwise the
+    // synchronous-reset logic in the SoC never sees a clock edge during reset.
+    reg [1:0] pixel_divider = 2'b00;
+    (* ASYNC_REG = "TRUE" *) reg [1:0] soc_reset_sync = 2'b00;
+    wire soc_clk = pixel_divider[0];
     wire pixel_clk = pixel_divider[1];
+    wire resetn = soc_reset_sync[1];
     wire [31:0] gpio_out;
     wire [31:0] debug_timer_lo;
     wire [31:0] debug_boot_status;
@@ -28,20 +32,27 @@ module top_basys3 (
     wire debug_uart_tx_valid;
 
     always @(posedge clk) begin
-        if (!resetn) begin
-            pixel_divider <= 2'b00;
+        pixel_divider <= pixel_divider + 2'b01;
+    end
+
+    // Asynchronous assertion guarantees an immediate board reset; synchronous
+    // release gives every SoC register at least two clean 50 MHz reset edges.
+    always @(posedge soc_clk or posedge btnC) begin
+        if (btnC) begin
+            soc_reset_sync <= 2'b00;
         end else begin
-            pixel_divider <= pixel_divider + 2'b01;
+            soc_reset_sync <= {soc_reset_sync[0], 1'b1};
         end
     end
 
     riscv_pc_soc #(
-        .CLK_FREQ_HZ (100_000_000),
+        .CLK_FREQ_HZ (50_000_000),
         .UART_BAUD   (115200),
         .BOOT_ROM_WORDS (4096),
-        .SRAM_WORDS  (16384)
+        .SRAM_WORDS  (16384),
+        .USE_AXI     (1)
     ) soc_i (
-        .clk      (clk),
+        .clk      (soc_clk),
         .resetn   (resetn),
         .uart_rx  (RsRx),
         .uart_tx  (RsTx),
@@ -61,7 +72,7 @@ module top_basys3 (
     );
 
     vga_text_console vga_i (
-        .clk_sys   (clk),
+        .clk_sys   (soc_clk),
         .clk_pix   (pixel_clk),
         .resetn    (resetn),
         .accent    (gpio_out[7:0]),

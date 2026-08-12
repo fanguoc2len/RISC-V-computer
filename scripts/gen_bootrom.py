@@ -3,6 +3,23 @@ import argparse
 import sys
 from pathlib import Path
 
+from boot_image import sum32_le_words
+from soc_config import (
+    GPIO_BASE,
+    NPU_BASE,
+    PS2_BASE,
+    SOC_CLK_FREQ_HZ,
+    SPI_BASE,
+    SRAM_BASE,
+    SRAM_SIZE_BYTES,
+    TIMER_BASE,
+    UART_BASE,
+    UART_BAUD,
+)
+
+DEFAULT_SOC_CLK_FREQ_HZ = SOC_CLK_FREQ_HZ
+DEFAULT_UART_BAUD = UART_BAUD
+
 
 REG = {
     "zero": 0,
@@ -61,20 +78,25 @@ def u32le_bytes(value: int) -> list[int]:
     return [(value >> shift) & 0xFF for shift in (0, 8, 16, 24)]
 
 
-def sum32_le_words(payload: list[int]) -> int:
-    payload_bytes = bytes(payload)
-    padded = payload_bytes + bytes((-len(payload_bytes)) % 4)
-    checksum = 0
-    for offset in range(0, len(padded), 4):
-        checksum = (checksum + int.from_bytes(padded[offset:offset + 4], "little")) & 0xFFFFFFFF
-    return checksum
-
-
 def words_to_le_bytes(words: list[int]) -> list[int]:
     payload: list[int] = []
     for word in words:
         payload.extend(u32le_bytes(word))
     return payload
+
+
+def uart_divisor(clk_freq_hz: int, uart_baud: int) -> int:
+    if clk_freq_hz <= 0:
+        raise ValueError("clk_freq_hz must be positive")
+    if uart_baud <= 0:
+        raise ValueError("uart_baud must be positive")
+
+    divisor = clk_freq_hz // uart_baud
+    if divisor <= 0:
+        raise ValueError(
+            f"UART baud {uart_baud} is too high for clock {clk_freq_hz}"
+        )
+    return divisor
 
 
 class Program:
@@ -164,6 +186,20 @@ class Program:
 
     def pcpi_dot4(self, rd: str, rs1: str, rs2: str) -> None:
         self.r_type(rd, rs1, rs2, funct3=0x0, funct7=0x2A, opcode=0x0B)
+
+    def getq(self, rd: str, qs: int) -> None:
+        assert 0 <= qs < 4
+        self.emit((qs << 15) | (reg(rd) << 7) | 0x0B)
+
+    def setq(self, qd: int, rs: str) -> None:
+        assert 0 <= qd < 4
+        self.emit((0x01 << 25) | (reg(rs) << 15) | (qd << 7) | 0x0B)
+
+    def maskirq(self, rd: str, rs: str) -> None:
+        self.emit((0x03 << 25) | (reg(rs) << 15) | (reg(rd) << 7) | 0x0B)
+
+    def retirq(self) -> None:
+        self.emit((0x02 << 25) | 0x0B)
 
     def li(self, rd: str, imm: int) -> None:
         imm = as_signed32(imm)
@@ -670,15 +706,18 @@ def build_sample_app(
     return words_to_le_bytes(p.words)
 
 
-def build_boot_assets() -> tuple[list[int], list[int]]:
-    uart_base = 0x20000000
-    gpio_base = 0x20001000
-    timer_base = 0x20002000
-    spi_base = 0x20003000
-    ps2_base = 0x20004000
-    npu_base = 0x20005000
-    sram_base = 0x10000000
-    sram_bytes = 0x00010000
+def build_boot_assets(
+    clk_freq_hz: int = DEFAULT_SOC_CLK_FREQ_HZ,
+    uart_baud: int = DEFAULT_UART_BAUD,
+) -> tuple[list[int], list[int]]:
+    uart_base = UART_BASE
+    gpio_base = GPIO_BASE
+    timer_base = TIMER_BASE
+    spi_base = SPI_BASE
+    ps2_base = PS2_BASE
+    npu_base = NPU_BASE
+    sram_base = SRAM_BASE
+    sram_bytes = SRAM_SIZE_BYTES
     sample_load_addr = sram_base + 0x20
     sample_entry_addr = sample_load_addr
     boot_info_magic = 0x49425652
@@ -688,7 +727,7 @@ def build_boot_assets() -> tuple[list[int], list[int]]:
     boot_status_bad_size = 0x000000E3
     boot_status_bad_entry = 0x000000E4
     boot_status_bad_checksum = 0x000000E5
-    uart_div = 868
+    uart_div = uart_divisor(clk_freq_hz, uart_baud)
     ramtest_min_base = sram_base + 0x200
     ramtest_limit = sram_base + sram_bytes - 0x200
     npu_demo_vec_a = 0xFC03FE01
@@ -702,9 +741,21 @@ def build_boot_assets() -> tuple[list[int], list[int]]:
     ]
     npu_vec16_expected = 0xFFFFFF5C
     npu_mat4_expected = [0x00000032, 0xFFFFFFFC, 0xFFFFFFCE, 0x000000E2]
+    timer_irq_mask = 1 << 3
+    timer_irq_delay_cycles = max(clk_freq_hz // 1000, 100)
 
     p = Program()
 
+    # PicoRV32 enters external interrupts at 0x10. Keep reset and IRQ vectors
+    # fixed even as the generated monitor grows.
+    p.j("boot_reset")
+    while p.pc() < 0x10:
+        p.addi("zero", "zero", 0)
+    p.label("irq_vector")
+    assert p.pc() == 0x10
+    p.j("timer_irq_handler")
+
+    p.label("boot_reset")
     p.li("s0", uart_base)
     p.li("s1", gpio_base)
     p.li("s2", 1)
@@ -1093,6 +1144,23 @@ def build_boot_assets() -> tuple[list[int], list[int]]:
     p.sw("zero", 24, "t0")
     p.sw("zero", 28, "t0")
     p.li("s5", 1)
+
+    # Arm a one-shot external timer interrupt and unmask only IRQ3. The IRQ
+    # handler clears the source before returning, so it cannot storm.
+    p.li("t0", timer_base)
+    p.lw("t1", 0, "t0")
+    p.lw("t3", 4, "t0")
+    p.li("t2", timer_irq_delay_cycles)
+    p.add("t4", "t1", "t2")
+    p.sltu("t5", "t4", "t1")
+    p.add("t3", "t3", "t5")
+    p.sw("t4", 8, "t0")
+    p.sw("t3", 12, "t0")
+    p.li("t1", 2)
+    p.sw("t1", 16, "t0")
+    p.li("t1", (~timer_irq_mask) & 0xFFFFFFFF)
+    p.maskirq("zero", "t1")
+
     puts(p, "s0", "t0", "BOOT=OK\r\n> ")
     p.j("main_loop")
 
@@ -1181,6 +1249,9 @@ def build_boot_assets() -> tuple[list[int], list[int]]:
     p.li("t3", timer_base)
     p.lw("t1", 0, "t3")
     put_hex_word(p, "t1", "time_lo")
+    puts(p, "s0", "t0", " IRQS=")
+    p.lw("t1", 20, "t3")
+    put_hex_word(p, "t1", "time_irqs")
     puts(p, "s0", "t0", "\r\n> ")
     p.j("main_loop")
 
@@ -1375,6 +1446,20 @@ def build_boot_assets() -> tuple[list[int], list[int]]:
     puts(p, "s0", "t0", "GO=ER\r\n> ")
     p.j("main_loop")
 
+    p.label("timer_irq_handler")
+    # q0/q1 are populated by PicoRV32. Preserve t0/t1 in q2/q3, clear the
+    # level source and pending latch, then restore the interrupted context.
+    p.setq(2, "t0")
+    p.setq(3, "t1")
+    p.li("t0", timer_base)
+    p.sw("zero", 8, "t0")
+    p.sw("zero", 12, "t0")
+    p.li("t1", 3)
+    p.sw("t1", 16, "t0")
+    p.getq("t1", 3)
+    p.getq("t0", 2)
+    p.retirq()
+
     p.resolve()
     return p.words, boot_header + boot_payload
 
@@ -1389,12 +1474,24 @@ def main() -> None:
     parser.add_argument("--stdout", action="store_true", help="Write the generated memory image to stdout.")
     parser.add_argument("--output", type=Path, help="Explicit output path for bootrom.mem.")
     parser.add_argument("--boot-image-output", type=Path, help="Explicit output path for boot_image.hex.")
+    parser.add_argument(
+        "--clk-freq-hz",
+        type=int,
+        default=DEFAULT_SOC_CLK_FREQ_HZ,
+        help=f"SoC clock used to derive the UART divider (default: {DEFAULT_SOC_CLK_FREQ_HZ}).",
+    )
+    parser.add_argument(
+        "--uart-baud",
+        type=int,
+        default=DEFAULT_UART_BAUD,
+        help=f"UART baud used by the generated monitor (default: {DEFAULT_UART_BAUD}).",
+    )
     args = parser.parse_args()
 
     repo_dir = Path(__file__).resolve().parent.parent
     output_path = args.output or (repo_dir / "bootrom.mem")
     boot_image_path = args.boot_image_output or (repo_dir / "boot_image.hex")
-    words, boot_image = build_boot_assets()
+    words, boot_image = build_boot_assets(args.clk_freq_hz, args.uart_baud)
     contents = "".join(f"{word:08x}\n" for word in words)
     boot_image_contents = "".join(f"{byte:02x}\n" for byte in boot_image)
 

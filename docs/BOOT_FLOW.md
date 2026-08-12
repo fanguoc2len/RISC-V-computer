@@ -123,7 +123,7 @@ Nen vao che do monitor:
 - in loi qua UART
 - `i`: in boot state hien tai (`boot_loaded`, `entry`)
 - `m`: dump nhanh `boot info block` va word dau cua app trong SRAM
-- `t`: doc timer counter de kiem tra peripheral timer/MMIO dang song
+- `t`: doc timer counter va `IRQS` de kiem tra CPU da vao/thoat handler IRQ
 - cho lenh don gian:
   - `h`: help
   - `k`: doc keyboard status

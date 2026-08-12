@@ -1,0 +1,11 @@
+{
+  "board": "Basys 3",
+  "part": "xc7a35tcpg236-1",
+  "ci_budget_percent": 80,
+  "capacity": {
+    "lut": 20800,
+    "ff": 41600,
+    "bram18": 100,
+    "dsp48": 90
+  }
+}

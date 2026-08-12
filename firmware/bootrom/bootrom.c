@@ -188,6 +188,8 @@ static void show_time_snapshot(void)
 {
     uart_puts("TIME=");
     uart_put_hex32(TIMER_COUNT_LO);
+    uart_puts(" IRQS=");
+    uart_put_hex32(TIMER_IRQ_COUNT);
     uart_puts("\n> ");
 }
 
@@ -432,7 +434,7 @@ int main(void)
 {
     uint32_t led_value = 1u;
 
-    uart_set_divider(868u);
+    uart_set_divider(UART_DEFAULT_DIV);
     gpio_write(led_value);
     banner();
     retry_sd_boot();

@@ -5,6 +5,7 @@ module timer_mmio (
     input  wire [31:0] addr,
     input  wire [31:0] wdata,
     input  wire [3:0]  wstrb,
+    input  wire        irq_ack,
     output reg         ready,
     output reg  [31:0] rdata,
     output wire        irq,
@@ -14,6 +15,8 @@ module timer_mmio (
     reg [63:0] compare;
     reg        irq_enable;
     reg        irq_pending;
+    reg        irq_ack_d;
+    reg [31:0] irq_count;
 
     assign irq = irq_enable && irq_pending;
     assign debug_counter_lo = counter[31:0];
@@ -26,9 +29,16 @@ module timer_mmio (
             compare <= 64'd0;
             irq_enable <= 1'b0;
             irq_pending <= 1'b0;
+            irq_ack_d <= 1'b0;
+            irq_count <= 32'd0;
             rdata <= 32'h00000000;
         end else begin
             counter <= counter + 64'd1;
+            irq_ack_d <= irq_ack;
+
+            if (irq_ack && !irq_ack_d) begin
+                irq_count <= irq_count + 32'd1;
+            end
 
             if ((compare != 64'd0) && (counter >= compare)) begin
                 irq_pending <= 1'b1;
@@ -61,6 +71,7 @@ module timer_mmio (
                             irq_enable <= wdata[1];
                         end
                     end
+                    3'd5: rdata <= irq_count;
                     default: rdata <= 32'h00000000;
                 endcase
             end

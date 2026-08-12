@@ -25,9 +25,28 @@ jobs:
       - name: Check Python tools
         run: |
           python3 -m py_compile \
+            scripts/boot_image.py \
+            scripts/soc_config.py \
+            scripts/check_soc_config.py \
+            scripts/check_yosys_resources.py \
+            scripts/check_boot_image.py \
+            scripts/test_boot_image.py \
+            scripts/test_bootrom_generator.py \
+            scripts/test_yosys_resources.py \
             scripts/gen_bootrom.py \
             scripts/gen_raw_boot_image.py \
             scripts/gen_offline_demo_data.py
+
+      - name: Verify shared SoC configuration
+        run: |
+          python3 scripts/check_soc_config.py
+          python3 scripts/test_yosys_resources.py
+
+      - name: Test and validate RVPC boot images
+        run: |
+          python3 scripts/test_boot_image.py
+          python3 scripts/test_bootrom_generator.py
+          python3 scripts/check_boot_image.py
 
       - name: Verify generated boot assets
         run: |
@@ -45,10 +64,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Install Verilator
+      - name: Install open-source RTL tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes verilator
+          sudo apt-get install --yes verilator yosys
 
       - name: Lint top-level RTL
         run: |
@@ -60,8 +79,93 @@ jobs:
             -Wno-WIDTHEXPAND \
             --top-module top_basys3 \
             third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
             rtl/memory/*.v \
             rtl/peripherals/*.v \
             rtl/soc/*.v \
             rtl/top/*.v \
             rtl/video/*.v
+
+      - name: Synthesize for Xilinx 7-series with Yosys
+        run: bash scripts/run_yosys_check.sh
+
+      - name: Test AXI4-Lite bridge
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            --top-module axi4lite_to_native_tb \
+            rtl/bus/axi4lite_to_native.v \
+            tb/axi4lite_to_native_tb.v \
+            -Mdir /tmp/obj_axi_bridge
+          /tmp/obj_axi_bridge/Vaxi4lite_to_native_tb
+
+      - name: Test timer MMIO
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-TIMESCALEMOD \
+            --top-module timer_mmio_tb \
+            rtl/peripherals/timer_mmio.v \
+            tb/timer_mmio_tb.v \
+            -Mdir /tmp/obj_timer_mmio
+          /tmp/obj_timer_mmio/Vtimer_mmio_tb
+
+      - name: Test monitor shell with dirty SRAM
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-PINMISSING \
+            -Wno-WIDTHTRUNC \
+            -Wno-WIDTHEXPAND \
+            -GDIRTY_SRAM=1 \
+            --top-module monitor_shell_tb \
+            third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
+            rtl/memory/*.v \
+            rtl/peripherals/*.v \
+            rtl/soc/*.v \
+            tb/monitor_shell_tb.v \
+            -Mdir /tmp/obj_monitor_shell
+          /tmp/obj_monitor_shell/Vmonitor_shell_tb
+
+      - name: Test native-bus fallback end to end
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-PINMISSING \
+            -Wno-WIDTHTRUNC \
+            -Wno-WIDTHEXPAND \
+            -GUSE_AXI=0 \
+            --top-module monitor_shell_tb \
+            third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
+            rtl/memory/*.v \
+            rtl/peripherals/*.v \
+            rtl/soc/*.v \
+            tb/monitor_shell_tb.v \
+            -Mdir /tmp/obj_monitor_shell_native
+          /tmp/obj_monitor_shell_native/Vmonitor_shell_tb
+
+      - name: Test Basys 3 top level end to end
+        run: |
+          verilator \
+            --binary \
+            --timing \
+            -Wno-PINMISSING \
+            -Wno-WIDTHTRUNC \
+            -Wno-WIDTHEXPAND \
+            --top-module top_basys3_tb \
+            third_party/picorv32/picorv32.v \
+            rtl/bus/*.v \
+            rtl/memory/*.v \
+            rtl/peripherals/*.v \
+            rtl/soc/*.v \
+            rtl/top/*.v \
+            rtl/video/*.v \
+            tb/top_basys3_tb.v \
+            -Mdir /tmp/obj_top_basys3
+          /tmp/obj_top_basys3/Vtop_basys3_tb

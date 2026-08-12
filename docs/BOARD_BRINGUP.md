@@ -106,6 +106,7 @@ Thong so UART:
 - `8 data bits`
 - `no parity`
 - `1 stop bit`
+- divider `434`, duoc tinh tu `50 MHz / 115200` trong generator va firmware
 
 ## 4. Neu LED sang nhung UART im
 
@@ -127,6 +128,9 @@ Uu tien kiem tra:
 - cac chan `vgaRed/Green/Blue` trong `.xdc` da dung chua
 
 Trong ban hien tai, VGA text console duoc feed truc tiep tu stream UART debug trong SoC. Neu UART song ma VGA den, kha nang cao la loi o timing/pin/man hinh; neu VGA co len nhung khong hien text moi, kiem tra them duong `debug_uart_tx_valid/debug_uart_tx_char`.
+Lenh `t` phai tra `TIME=<counter> IRQS=00000001`, xac nhan timer IRQ da vao
+vector `0x10`, duoc acknowledge va quay lai monitor.
+
 Neu VGA co len nhung dong `STAT` khong phai `00000001`, uu tien kiem tra lai duong boot SPI/boot image.
 
 ## 6. Neu bitstream nap duoc nhung khong co dau hieu song
@@ -134,7 +138,7 @@ Neu VGA co len nhung dong `STAT` khong phai `00000001`, uu tien kiem tra lai duo
 Check theo thu tu nay:
 
 1. `btnC` co dang giu reset khong
-2. clock `100 MHz` cua Basys 3 da constraint dung chua
+2. clock input `100 MHz` cua Basys 3 va generated clock SoC `50 MHz` da constraint dung chua
 3. `bootrom.mem` co duoc add vao project khong
 4. `LED0` co thuc su noi vao `gpio_out[0]` khong
 5. top implementation co phai la `top_basys3` khong

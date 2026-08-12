@@ -6,6 +6,16 @@ set_property PACKAGE_PIN W5 [get_ports clk]
 set_property IOSTANDARD LVCMOS33 [get_ports clk]
 create_clock -period 10.000 -name sys_clk_pin [get_ports clk]
 
+## Fabric dividers in top_basys3: 50 MHz SoC and 25 MHz VGA pixel clocks.
+## These constraints keep timing analysis from treating both divided clocks
+## as if they still ran at the 100 MHz board-clock rate.
+create_generated_clock -name soc_clk \
+    -source [get_ports clk] -divide_by 2 \
+    [get_pins {pixel_divider_reg[0]/Q}]
+create_generated_clock -name vga_pixel_clk \
+    -source [get_ports clk] -divide_by 4 \
+    [get_pins {pixel_divider_reg[1]/Q}]
+
 ## Center button as reset
 set_property PACKAGE_PIN U18 [get_ports btnC]
 set_property IOSTANDARD LVCMOS33 [get_ports btnC]

@@ -8,10 +8,10 @@ real FPGA computer step by step instead of jumping straight into a full SoC.
 
 At its current stage, the project is a practical FPGA bring-up platform with:
 
-- `PicoRV32` CPU with native memory interface
+- `PicoRV32` CPU with an AXI4-Lite master path (native fallback retained)
 - boot ROM + unified SRAM in BRAM
 - UART monitor shell
-- GPIO / LED / timer / SPI / PS2 peripherals
+- GPIO / LED / timer IRQ / SPI / PS2 peripherals
 - VGA text console with status footer
 - small NPU-style MMIO and PCPI test paths
 - Vivado simulation flow, build scripts, and presentation demo
@@ -23,7 +23,9 @@ source, documentation, and verification tree.
 
 - Board: `Digilent Basys 3`
 - FPGA: `xc7a35tcpg236-1`
-- Clock: `100 MHz`
+- Board clock input: `100 MHz`
+- SoC/AXI clock: `50 MHz`
+- VGA pixel clock: `25 MHz`
 - CPU: `PicoRV32`
 - Memory model: unified address space
 
@@ -64,6 +66,7 @@ the board I/O and experimental accelerator paths.
 The project is meant to show practical FPGA system work:
 
 - top-level board integration
+- AXI4-Lite CPU/interconnect integration
 - memory-mapped peripheral design
 - boot flow design
 - host-verifiable regression paths
@@ -80,6 +83,7 @@ architecture rather than an oversized, unfinished operating-system scope.
 - PS/2 keyboard input path
 - VGA text console `80x29` with live footer fields
 - simple memory dump / timer / RAM self-test commands
+- PicoRV32 external IRQ3 vector with a register-safe one-shot timer handler
 - NPU-lite dot4, vector accumulate, and matvec4 validation paths
 - SRAM app handoff via command `g` into `RVOS/32`
 
@@ -113,15 +117,20 @@ repeatable bring-up, and clear technical communication.
 | `0x1000_0000` - `0x1000_FFFF` | Unified SRAM (64 KB) |
 | `0x2000_0000` - `0x2000_0007` | UART divider / data |
 | `0x2000_1000` - `0x2000_1003` | GPIO output |
-| `0x2000_2000` - `0x2000_2013` | Timer counter / compare |
+| `0x2000_2000` - `0x2000_2017` | Timer counter / compare / control / IRQ acknowledge count |
 | `0x2000_3000` - `0x2000_3007` | SPI master |
 | `0x2000_4000` - `0x2000_4007` | PS/2 keyboard |
 | `0x2000_5000` - `0x2000_5027` | NPU-lite dot4 / matvec4 MMIO |
+
+Clock, UART, ROM/SRAM size, and address-map defaults are defined in
+`config/soc_config.json`. Run `python3 scripts/check_soc_config.py` after
+changing RTL or firmware constants; CI runs the same drift check.
 
 ## Repository Layout
 
 ```text
 rtl/
+  bus/                       AXI4-Lite CPU wrapper and local-bus bridge
   top/top_basys3.v          Basys 3 top-level
   soc/riscv_pc_soc.v        main SoC
   memory/                   boot ROM and SRAM
@@ -168,6 +177,12 @@ Full smoke simulation:
 
 ```bat
 scripts\run_vivado_smoke_sim.bat
+```
+
+AXI4-Lite protocol, synthesis, implementation, DRC, and timing validation:
+
+```text
+vivado -mode batch -notrace -source scripts/run_vivado_axi_validation.tcl -tclargs 4
 ```
 
 NPU and top-level regression:
@@ -233,14 +248,32 @@ build/vivado_terminal_demo.txt
 
 ## Automated Checks
 
-GitHub Actions runs two hardware-independent checks:
+GitHub Actions runs hardware-independent checks for:
 
 - deterministic regeneration of `bootrom.mem` and `boot_image.hex`
+- RVPC header/range/checksum validation, including corrupted-payload rejection
 - Verilator structural lint of the Basys 3 top-level RTL hierarchy
+- Yosys synthesis of the complete top level for the Xilinx 7-series family,
+  with an 80% LUT/FF/BRAM/DSP resource ceiling for the Basys 3
+- AXI4-Lite bridge protocol behavior under channel and response backpressure
+- timer MMIO counter/byte-strobe/compare/IRQ/EOI-count/W1C behavior
+- monitor-shell boot from deliberately nonzero SRAM power-up contents
+- full Basys 3 top-level end-to-end regression
+- native CPU-bus fallback parity with the default AXI path
 
 Vivado simulation, synthesis, implementation, and bitstream generation remain
 in the documented local scripts because the proprietary toolchain is not
 available on the standard GitHub-hosted runner.
+
+Run the portable synthesis check locally with:
+
+```bash
+bash scripts/run_yosys_check.sh
+```
+
+The resource ceiling is defined in `config/fpga_resources.json`. It is an
+early-growth guard based on the synthesized primitive estimate, not a
+replacement for Vivado placement, routing, DRC, utilization, or timing.
 
 ## Why There Is Also a Zybo Repo
 
@@ -253,6 +286,8 @@ not be read as a replacement for this repo.
 ## Useful Docs
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/AXI4_LITE.md](docs/AXI4_LITE.md)
+- [docs/INTERRUPTS.md](docs/INTERRUPTS.md)
 - [docs/BOOT_FLOW.md](docs/BOOT_FLOW.md)
 - [docs/BOARD_BRINGUP.md](docs/BOARD_BRINGUP.md)
 - [docs/DEBUG_GUIDE.md](docs/DEBUG_GUIDE.md)

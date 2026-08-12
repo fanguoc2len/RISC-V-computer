@@ -1,4 +1,8 @@
 .Xil/
+.codegraph/
+.ua/
+__pycache__/
+*.py[cod]
 *.cache/
 *.gen/
 *.hw/

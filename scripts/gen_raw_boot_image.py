@@ -1,35 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-import struct
 from pathlib import Path
 
-
-MAGIC = int.from_bytes(b"RVPC", "little")
-HEADER_WORDS = 8
-HEADER_SIZE = HEADER_WORDS * 4
-
-
-def sum32_le_words(payload: bytes) -> int:
-    padded = payload + bytes((-len(payload)) % 4)
-    checksum = 0
-    for offset in range(0, len(padded), 4):
-        checksum = (checksum + int.from_bytes(padded[offset:offset + 4], "little")) & 0xFFFFFFFF
-    return checksum
-
-
-def build_image(payload: bytes, load_addr: int, entry_addr: int, version: int) -> bytes:
-    header = struct.pack(
-        "<8I",
-        MAGIC,
-        load_addr & 0xFFFFFFFF,
-        len(payload) & 0xFFFFFFFF,
-        entry_addr & 0xFFFFFFFF,
-        sum32_le_words(payload),
-        version & 0xFFFFFFFF,
-        0,
-        0,
-    )
-    return header + payload
+from boot_image import MAGIC, build_image, sum32_le_words, validate_image
+from soc_config import SRAM_BASE, SRAM_SIZE_BYTES
 
 
 def parse_int(value: str) -> int:
@@ -40,7 +14,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Pack a raw RVPC boot image for the PicoRV32 FPGA computer.")
     parser.add_argument("input_bin", type=Path, help="Flat payload binary to load into SRAM.")
     parser.add_argument("output_img", type=Path, help="Output boot image containing header + payload.")
-    parser.add_argument("--load-addr", type=parse_int, default=0x10000000, help="Destination SRAM address. Default: 0x10000000")
+    parser.add_argument(
+        "--load-addr",
+        type=parse_int,
+        default=SRAM_BASE,
+        help=f"Destination SRAM address. Default: 0x{SRAM_BASE:08X}",
+    )
     parser.add_argument("--entry-addr", type=parse_int, help="Entry point after load. Default: same as --load-addr")
     parser.add_argument("--version", type=parse_int, default=1, help="Header version field. Default: 1")
     args = parser.parse_args()
@@ -48,6 +27,11 @@ def main() -> None:
     payload = args.input_bin.read_bytes()
     entry_addr = args.entry_addr if args.entry_addr is not None else args.load_addr
     image = build_image(payload, args.load_addr, entry_addr, args.version)
+    validate_image(
+        image,
+        sram_base=SRAM_BASE,
+        sram_size_bytes=SRAM_SIZE_BYTES,
+    )
 
     args.output_img.parent.mkdir(parents=True, exist_ok=True)
     args.output_img.write_bytes(image)

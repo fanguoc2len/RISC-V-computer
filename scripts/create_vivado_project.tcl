@@ -1,6 +1,11 @@
 set script_dir [file normalize [file dirname [info script]]]
 set repo_dir [file normalize [file join $script_dir ..]]
-set build_dir [file join $repo_dir build vivado]
+if {[info exists vivado_project_dir_override] &&
+    [string length $vivado_project_dir_override] > 0} {
+    set build_dir [file normalize $vivado_project_dir_override]
+} else {
+    set build_dir [file join $repo_dir build vivado]
+}
 
 file mkdir $build_dir
 
@@ -8,6 +13,7 @@ create_project risc_v_computer $build_dir -part xc7a35tcpg236-1 -force
 set_property target_language Verilog [current_project]
 
 add_files [file join $repo_dir third_party picorv32 picorv32.v]
+add_files [glob -nocomplain [file join $repo_dir rtl bus *.v]]
 add_files [glob -nocomplain [file join $repo_dir rtl memory *.v]]
 add_files [glob -nocomplain [file join $repo_dir rtl peripherals *.v]]
 add_files [glob -nocomplain [file join $repo_dir rtl soc *.v]]
@@ -24,7 +30,6 @@ set_property top top_basys3 [get_filesets sources_1]
 set_property top top_basys3_tb [get_filesets sim_1]
 
 update_compile_order -fileset sources_1
-update_compile_order -fileset constrs_1
 update_compile_order -fileset sim_1
 
 puts "Vivado project created at $build_dir"

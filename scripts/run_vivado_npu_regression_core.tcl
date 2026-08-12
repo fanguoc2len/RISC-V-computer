@@ -59,6 +59,9 @@ proc run_checked_sim {sim_top pass_pattern saved_log label} {
     if {[string first $pass_pattern $contents] < 0} {
         error "PASS marker '$pass_pattern' was not found in $saved_log"
     }
+    if {[string first "FAIL:" $contents] >= 0} {
+        error "FAIL marker was found in $saved_log"
+    }
 
     puts "Verified $label"
     puts "  log: $saved_log"

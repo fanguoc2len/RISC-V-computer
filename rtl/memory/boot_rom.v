@@ -12,9 +12,13 @@ module boot_rom #(
     integer i;
 
     initial begin
+`ifndef SYNTHESIS
+        // Fill unused simulation words with RISC-V NOPs. Synthesis only needs
+        // the generated image below and must not unroll this large loop.
         for (i = 0; i < WORDS; i = i + 1) begin
             mem[i] = 32'h00000013;
         end
+`endif
         $readmemh(MEMFILE, mem);
     end
 
